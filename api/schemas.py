@@ -1,0 +1,15 @@
+from pydantic import BaseModel
+
+
+class PredictionRequest(BaseModel):
+    student_id: int
+    job_id: int
+
+
+class PredictionResponse(BaseModel):
+    student_name: str
+    company: str
+    role: str
+    match_score: float
+    status: str
+    reason: list[str]

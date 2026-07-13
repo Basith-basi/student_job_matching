@@ -1,0 +1,68 @@
+# ==========================
+# Python
+# ==========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+
+# VS Code
+.vscode/
+
+# PyCharm
+.idea/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Python Environment
+.python-version
+
+# Distribution / Packaging
+build/
+dist/
+*.egg-info/
+
+# Logs
+*.log
+
+# Environment Variables
+.env
+
+# Unit Test / Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Type Checker
+.mypy_cache/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Temporary Files
+*.tmp
+*.bak
+
+# Model Files (Optional)
+models/*.pkl
+models/*.joblib
+
+# Cache
+.cache/
+
+# Uploaded Files (Optional)
+uploads/
+
+# FastAPI
+*.sqlite3
+*.db
+
+# Generated Reports
+reports/
