@@ -1,43 +1,31 @@
-#  Student Job Matching System
+# Student Job Matching System - Task 2
 
-A Machine Learning-based Student Job Matching System that recommends suitable job roles for students based on their skills, academic performance, communication ability, and experience.
-
-The project follows a complete AI/ML pipeline including data loading, preprocessing, feature engineering, recommendation, ranking, explainability, visualization, and FastAPI deployment.
+An AI/ML-based Student Job Matching System that recommends suitable candidates for job roles using threshold-based validation, feature engineering, rule-based matching, ranking, explainability, and FastAPI.
 
 ---
 
-##  Features
+## Features
 
-- Load student and job datasets
-- Data preprocessing and cleaning
+- Student and Job dataset loading
+- Data preprocessing
 - Feature engineering
-- Rule-based job matching
+- Match vector generation
+- Threshold validation
+- Threshold-aware scoring
 - Candidate ranking
 - Explainable recommendations
-- Performance evaluation
-- Data visualizations
+- Evaluation metrics
 - FastAPI REST API
-- Interactive Swagger documentation
+- Swagger API documentation
+- Data visualizations
 
 ---
 
-##  Tech Stack
-
-- Python
-- Pandas
-- NumPy
-- Scikit-learn
-- Matplotlib
-- FastAPI
-- Uvicorn
-
----
-
-##  Project Structure
+## Project Structure
 
 ```
 student_job_matching/
-│
+
 ├── api/
 │   ├── app.py
 │   ├── routes.py
@@ -53,7 +41,8 @@ student_job_matching/
 │   ├── candidate_ranking.png
 │   ├── confusion_matrix.png
 │   ├── match_score_distribution.png
-│   └── skill_gap.png
+│   ├── skill_gap.png
+│   └── threshold_validation.png
 │
 ├── src/
 │   ├── data_loader.py
@@ -61,6 +50,7 @@ student_job_matching/
 │   ├── feature_engineering.py
 │   ├── matching.py
 │   ├── ranking.py
+│   ├── threshold_validation.py
 │   ├── explainability.py
 │   ├── evaluation.py
 │   ├── visualization.py
@@ -75,12 +65,24 @@ student_job_matching/
 
 ---
 
-##  Installation
+## Technologies Used
+
+- Python
+- Pandas
+- NumPy
+- Scikit-learn
+- Matplotlib
+- FastAPI
+- Uvicorn
+
+---
+
+## Installation
 
 Clone the repository
 
 ```bash
-git clone https://github.com/your-username/student_job_matching.git
+git clone <repository_url>
 ```
 
 Move into the project
@@ -89,24 +91,18 @@ Move into the project
 cd student_job_matching
 ```
 
-Create a virtual environment
+Create virtual environment
 
 ```bash
 python -m venv venv
 ```
 
-Activate it
+Activate virtual environment
 
-### Windows
+Windows
 
 ```bash
 venv\Scripts\activate
-```
-
-### Linux / macOS
-
-```bash
-source venv/bin/activate
 ```
 
 Install dependencies
@@ -117,9 +113,9 @@ pip install -r requirements.txt
 
 ---
 
-##  Run the Project
+## Run the Project
 
-Execute the main program
+Execute
 
 ```bash
 python main.py
@@ -127,15 +123,13 @@ python main.py
 
 ---
 
-##  Run the API
-
-Start the FastAPI server
+## Run FastAPI
 
 ```bash
 uvicorn api.app:app --reload
 ```
 
-Open Swagger UI
+Open Swagger
 
 ```
 http://127.0.0.1:8000/docs
@@ -143,102 +137,100 @@ http://127.0.0.1:8000/docs
 
 ---
 
-##  API Endpoints
+## API Endpoints
 
 | Method | Endpoint | Description |
 |---------|----------|-------------|
-| GET | `/` | Welcome message |
-| GET | `/health` | API health status |
-| POST | `/predict` | Predict job match |
-| GET | `/rankings` | Rank students for a job |
+| GET | / | Home |
+| GET | /health | Health Check |
+| POST | /predict | Predict Student-Job Match |
+| GET | /rankings | Candidate Ranking |
+| GET | /thresholds/{job_id} | View Job Thresholds |
 
 ---
 
-##  Workflow
+## AI/ML Workflow
 
 ```
-Students CSV
-       │
-       ▼
+Student Dataset
+        │
+        ▼
 Data Loading
-       │
-       ▼
+        │
+        ▼
 Preprocessing
-       │
-       ▼
+        │
+        ▼
 Feature Engineering
-       │
-       ▼
-Matching Engine
-       │
-       ▼
-Ranking
-       │
-       ▼
+        │
+        ▼
+Match Vector
+        │
+        ▼
+Threshold Validation
+        │
+        ▼
+Threshold-aware Scoring
+        │
+        ▼
+Candidate Ranking
+        │
+        ▼
 Explainability
-       │
-       ▼
+        │
+        ▼
 Evaluation
-       │
-       ▼
-Visualization
-       │
-       ▼
-FastAPI Deployment
+        │
+        ▼
+FastAPI
 ```
 
 ---
 
-##  Output
+## Evaluation Metrics
 
-The system provides:
-
-- Match Score
-- Recommendation Status
-- Matching Reasons
-- Student Rankings
-- Performance Visualizations
-
----
-
-##  Concepts Covered
-
-- Data Loading
-- Data Cleaning
-- Feature Engineering
-- Recommendation Systems
-- Ranking Algorithms
-- Explainable AI (XAI)
-- Data Visualization
-- FastAPI
-- REST API Development
-- Model Evaluation
+- Precision
+- Recall
+- F1 Score
+- Classification Report
+- Confusion Matrix
+- ROC Curve (Optional)
 
 ---
 
-##  Visualizations
+## Generated Visualizations
 
-The project generates:
-
-- Candidate Ranking Chart
+- Candidate Ranking
 - Match Score Distribution
 - Skill Gap Analysis
+- Threshold Validation
 - Confusion Matrix
 
-These plots are saved in the **plots/** directory.
+Generated plots are saved in the **plots/** folder.
 
 ---
 
-##  Future Improvements
+## Task 2 Enhancements
 
-- Machine Learning-based recommendation model
-- Random Forest / XGBoost implementation
-- Model serialization (.pkl)
-- Database integration
-- Authentication
-- Streamlit dashboard
-- Docker deployment
-- Cloud deployment (AWS/Azure)
+- Threshold Validation
+- Match Vector Generation
+- Threshold-aware Scoring
+- Threshold-based Explainability
+- Enhanced Candidate Ranking
+- Updated FastAPI Responses
+- Threshold Visualization
+
+---
+
+## Future Improvements
+
+- Random Forest Matching Model
+- XGBoost Recommendation Engine
+- Deep Learning Matching
+- Resume Parsing
+- Streamlit Dashboard
+- Database Integration
+- Authentication & Authorization
 
 ---
 

@@ -1,13 +1,20 @@
+from src.threshold_validation import ThresholdValidator
+
+
 class JobMatcher:
 
     def __init__(self):
 
+        self.validator = ThresholdValidator()
+
         # Weightage of each feature
         self.weights = {
-            "Python": 0.30,
-            "SQL": 0.20,
-            "ML": 0.30,
-            "Communication": 0.20
+            "Python": 20,
+            "SQL": 15,
+            "Machine Learning": 25,
+            "Communication": 15,
+            "Experience": 15,
+            "CGPA": 10
         }
 
     # ---------------------------------------------------
@@ -17,68 +24,52 @@ class JobMatcher:
     def calculate_match_score(self, student, job):
 
         score = 0
-
         reasons = []
 
-        # -------------------------------
+        # Validate all thresholds
+        validation = self.validator.validate(student, job)
+
         # Python
-        # -------------------------------
+        if validation["Python"]:
+            score += self.weights["Python"]
+            reasons.append(
+                f"Python threshold passed ({student['Python']} ≥ {job['Python_Threshold']})"
+            )
 
-        if student["Python"] >= job["Required Python"]:
-
-            score += self.weights["Python"] * 100
-
-            reasons.append("Python requirement satisfied")
-
-        # -------------------------------
         # SQL
-        # -------------------------------
+        if validation["SQL"]:
+            score += self.weights["SQL"]
+            reasons.append(
+                f"SQL threshold passed ({student['SQL']} ≥ {job['SQL_Threshold']})"
+            )
 
-        if student["SQL"] >= job["Required SQL"]:
-
-            score += self.weights["SQL"] * 100
-
-            reasons.append("SQL requirement satisfied")
-
-        # -------------------------------
         # Machine Learning
-        # -------------------------------
+        if validation["Machine Learning"]:
+            score += self.weights["Machine Learning"]
+            reasons.append(
+                f"Machine Learning threshold passed ({student['Machine Learning']} ≥ {job['ML_Threshold']})"
+            )
 
-        if student["Machine Learning"] >= job["Required ML"]:
-
-            score += self.weights["ML"] * 100
-
-            reasons.append("Machine Learning requirement satisfied")
-
-        # -------------------------------
         # Communication
-        # -------------------------------
+        if validation["Communication"]:
+            score += self.weights["Communication"]
+            reasons.append(
+                f"Communication threshold passed ({student['Communication']} ≥ {job['Communication_Threshold']})"
+            )
 
-        if student["Communication"] >= job["Required Communication"]:
+        # Experience
+        if validation["Experience"]:
+            score += self.weights["Experience"]
+            reasons.append(
+                f"Experience requirement satisfied ({student['Experience']} ≥ {job['Experience_Threshold']})"
+            )
 
-            score += self.weights["Communication"] * 100
-
-            reasons.append("Communication requirement satisfied")
-
-        # -------------------------------
-        # Bonus for CGPA
-        # -------------------------------
-
-        if student["CGPA"] >= job["Minimum CGPA"]:
-
-            score += 5
-
-            reasons.append("CGPA above minimum")
-
-        # -------------------------------
-        # Bonus for Experience
-        # -------------------------------
-
-        if student["Experience"] >= 1:
-
-            score += 5
-
-            reasons.append("Has relevant experience")
+        # CGPA
+        if validation["CGPA"]:
+            score += self.weights["CGPA"]
+            reasons.append(
+                f"CGPA above minimum ({student['CGPA']} ≥ {job['Minimum_CGPA']})"
+            )
 
         score = min(score, 100)
 
@@ -97,6 +88,9 @@ class JobMatcher:
             return "Recommended"
 
         elif score >= 60:
+            return "Good Match"
+
+        elif score >= 40:
             return "Moderate Match"
 
         else:

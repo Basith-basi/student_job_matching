@@ -1,3 +1,4 @@
+from typing import Dict, List
 from pydantic import BaseModel
 
 
@@ -12,4 +13,5 @@ class PredictionResponse(BaseModel):
     role: str
     match_score: float
     status: str
-    reason: list[str]
+    threshold_validation: Dict[str, bool]
+    reasons: List[str]

@@ -13,6 +13,7 @@ from src.feature_engineering import FeatureEngineer
 from src.matching import JobMatcher
 from src.ranking import JobRanker
 from src.explainability import Explainability
+from src.threshold_validation import ThresholdValidator
 from src.utils import logger
 
 
@@ -28,6 +29,7 @@ feature_engineer = FeatureEngineer()
 matcher = JobMatcher()
 ranker = JobRanker()
 explainer = Explainability()
+validator = ThresholdValidator()
 
 
 # ==========================================================
@@ -138,10 +140,27 @@ def predict(request: PredictionRequest):
 
         # ----------------------------------
 
-        feature_engineer.create_feature_vector(
+                # -----------------------------
+        # Feature Engineering
+        # -----------------------------
+
+        features = feature_engineer.create_feature_vector(
             student,
             job
         )
+
+        # -----------------------------
+        # Threshold Validation
+        # -----------------------------
+
+        validation = validator.validate(
+            student,
+            job
+        )
+
+        # -----------------------------
+        # Matching
+        # -----------------------------
 
         score, reasons = matcher.calculate_match_score(
             student,
@@ -149,6 +168,10 @@ def predict(request: PredictionRequest):
         )
 
         recommendation = matcher.get_recommendation(score)
+
+        # -----------------------------
+        # Explainability
+        # -----------------------------
 
         explanation = explainer.explain(
             student,
@@ -169,12 +192,13 @@ def predict(request: PredictionRequest):
 
             status=recommendation,
 
-            reason=explanation
+            threshold_validation=validation,
+
+            reasons=explanation
 
         )
 
     except HTTPException:
-
         raise
 
     except Exception as e:
@@ -182,12 +206,10 @@ def predict(request: PredictionRequest):
         logger.error(str(e))
 
         raise HTTPException(
-
             status_code=500,
-
             detail="Internal Server Error."
-
         )
+
 
 
 # ==========================================================
@@ -243,4 +265,53 @@ def rankings(job_id: int):
 
             detail="Internal Server Error."
 
+        )
+    # ==========================================================
+# Job Thresholds Endpoint
+# ==========================================================
+
+@router.get("/thresholds/{job_id}")
+def get_thresholds(job_id: int):
+
+    try:
+
+        _, jobs = load_data()
+
+        job = jobs[
+            jobs["Job_ID"] == job_id
+        ]
+
+        if job.empty:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Job not found."
+            )
+
+        job = job.iloc[0]
+
+        return {
+            "Job_ID": int(job["Job_ID"]),
+            "Company": job["Company"],
+            "Role": job["Role"],
+            "Thresholds": {
+                "Python": int(job["Python_Threshold"]),
+                "SQL": int(job["SQL_Threshold"]),
+                "Machine Learning": int(job["ML_Threshold"]),
+                "Communication": int(job["Communication_Threshold"]),
+                "Experience": int(job["Experience_Threshold"]),
+                "CGPA": float(job["Minimum_CGPA"])
+            }
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
+        logger.error(str(e))
+
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Server Error."
         )

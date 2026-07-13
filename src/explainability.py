@@ -1,49 +1,70 @@
 class Explainability:
 
-    def explain(
+    def __init__(self):
+        pass
 
-        self,
+    def explain(self, student, job):
 
-        student,
+        reasons = []
 
-        job
-
-    ):
-
-        explanation = []
-
-        if student["Python"] >= job["Required Python"]:
-
-            explanation.append(
-
-                f"Python exceeds requirement by "
-
-                f"{student['Python']-job['Required Python']}"
-
+        # Python
+        if student["Python"] >= job["Python_Threshold"]:
+            reasons.append(
+                f"Python threshold passed ({student['Python']} ≥ {job['Python_Threshold']})"
+            )
+        else:
+            reasons.append(
+                f"Python threshold not met ({student['Python']} < {job['Python_Threshold']})"
             )
 
-        if student["SQL"] >= job["Required SQL"]:
-
-            explanation.append(
-
-                "SQL meets requirement"
-
+        # SQL
+        if student["SQL"] >= job["SQL_Threshold"]:
+            reasons.append(
+                f"SQL threshold passed ({student['SQL']} ≥ {job['SQL_Threshold']})"
+            )
+        else:
+            reasons.append(
+                f"SQL threshold not met ({student['SQL']} < {job['SQL_Threshold']})"
             )
 
-        if student["Machine Learning"] >= job["Required ML"]:
-
-            explanation.append(
-
-                "Strong Machine Learning score"
-
+        # Machine Learning
+        if student["Machine Learning"] >= job["ML_Threshold"]:
+            reasons.append(
+                f"Machine Learning threshold passed ({student['Machine Learning']} ≥ {job['ML_Threshold']})"
+            )
+        else:
+            reasons.append(
+                f"Machine Learning threshold not met ({student['Machine Learning']} < {job['ML_Threshold']})"
             )
 
-        if student["CGPA"] >= job["Minimum CGPA"]:
-
-            explanation.append(
-
-                "CGPA exceeds minimum"
-
+        # Communication
+        if student["Communication"] >= job["Communication_Threshold"]:
+            reasons.append(
+                f"Communication threshold passed ({student['Communication']} ≥ {job['Communication_Threshold']})"
+            )
+        else:
+            reasons.append(
+                f"Communication threshold not met ({student['Communication']} < {job['Communication_Threshold']})"
             )
 
-        return explanation
+        # Experience
+        if student["Experience"] >= job["Experience_Threshold"]:
+            reasons.append(
+                f"Experience requirement satisfied ({student['Experience']} ≥ {job['Experience_Threshold']})"
+            )
+        else:
+            reasons.append(
+                f"Experience requirement not satisfied ({student['Experience']} < {job['Experience_Threshold']})"
+            )
+
+        # CGPA
+        if student["CGPA"] >= job["Minimum_CGPA"]:
+            reasons.append(
+                f"CGPA above minimum ({student['CGPA']} ≥ {job['Minimum_CGPA']})"
+            )
+        else:
+            reasons.append(
+                f"CGPA below minimum ({student['CGPA']} < {job['Minimum_CGPA']})"
+            )
+
+        return reasons

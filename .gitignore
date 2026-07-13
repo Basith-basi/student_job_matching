@@ -1,68 +1,56 @@
-# ==========================
+# Virtual Environment
+venv/
+.venv/
+
 # Python
-# ==========================
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Virtual Environment
-venv/
-.venv/
-env/
-ENV/
-
-# VS Code
-.vscode/
-
-# PyCharm
-.idea/
-
-# Jupyter Notebook
-.ipynb_checkpoints/
-
-# Python Environment
-.python-version
-
-# Distribution / Packaging
+# Distribution
 build/
 dist/
 *.egg-info/
 
-# Logs
-*.log
+# IDE
+.vscode/
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
 
 # Environment Variables
 .env
 
-# Unit Test / Coverage
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Type Checker
-.mypy_cache/
+# Logs
+*.log
 
 # OS Files
 .DS_Store
 Thumbs.db
 
+# Model Files
+*.pkl
+*.joblib
+*.h5
+*.keras
+
+# Plot Images
+plots/*.png
+
 # Temporary Files
 *.tmp
-*.bak
-
-# Model Files (Optional)
-models/*.pkl
-models/*.joblib
+*.temp
 
 # Cache
 .cache/
 
-# Uploaded Files (Optional)
-uploads/
+# Testing
+.pytest_cache/
 
-# FastAPI
-*.sqlite3
+# Coverage
+.coverage
+htmlcov/
+
+# SQLite Database
 *.db
-
-# Generated Reports
-reports/

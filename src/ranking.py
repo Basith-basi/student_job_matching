@@ -1,6 +1,5 @@
-import pandas as pd
-
 from src.matching import JobMatcher
+from src.threshold_validation import ThresholdValidator
 
 
 class JobRanker:
@@ -8,52 +7,72 @@ class JobRanker:
     def __init__(self):
 
         self.matcher = JobMatcher()
+        self.validator = ThresholdValidator()
+
+    # =====================================================
+    # Rank Students
+    # =====================================================
 
     def rank_students(self, students, job):
 
-        results = []
+        rankings = []
 
         for _, student in students.iterrows():
 
-            score, reasons = self.matcher.calculate_match_score(
+            # Match Score
+            score, _ = self.matcher.calculate_match_score(
                 student,
                 job
             )
 
+            # Recommendation
             status = self.matcher.get_recommendation(score)
 
-            results.append({
+            # Threshold Validation
+            validation = self.validator.validate(
+                student,
+                job
+            )
 
-                "Student ID": student["Student_ID"],
+            # Count Passed Thresholds
+            passed = sum(validation.values())
+            total = len(validation)
 
-                "Student": student["Name"],
+            rankings.append({
 
-                "Score": score,
+                "Student": student["Name"].title(),
 
-                "Status": status,
+                "Passed Thresholds": f"{passed}/{total}",
 
-                "Reasons": reasons
+                "Threshold Count": passed,
+
+                "Score": round(score, 2),
+
+                "Status": status
 
             })
 
-        ranking = pd.DataFrame(results)
+        # Convert list to DataFrame
+        import pandas as pd
 
+        ranking = pd.DataFrame(rankings)
+
+        # Sort by Threshold Count first, then Score
         ranking = ranking.sort_values(
-
-            by="Score",
-
+            by=["Threshold Count", "Score"],
             ascending=False
-
-        ).reset_index(drop=True)
-
-        ranking.insert(
-
-            0,
-
-            "Rank",
-
-            range(1, len(ranking)+1)
-
         )
 
-        return ranking
+        ranking.reset_index(drop=True, inplace=True)
+
+        ranking["Rank"] = ranking.index + 1
+
+        return ranking[
+            [
+                "Rank",
+                "Student",
+                "Passed Thresholds",
+                "Score",
+                "Status"
+            ]
+        ]
