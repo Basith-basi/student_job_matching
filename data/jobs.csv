@@ -1,11 +1,31 @@
 Job_ID,Company,Role,Python_Threshold,SQL_Threshold,ML_Threshold,Communication_Threshold,Minimum_CGPA,Experience_Threshold
-101,Google,ML Engineer,80,70,85,75,7.5,1
-102,Microsoft,Data Scientist,85,80,90,80,8.0,2
-103,Amazon,Data Analyst,70,85,65,75,7.0,2
-104,Infosys,Python Developer,75,60,60,70,6.8,0
-105,TCS,AI Engineer,80,75,85,80,7.8,1
-106,Accenture,ML Engineer,85,70,88,82,8.2,2
-107,IBM,Backend Developer,80,85,60,75,7.4,1
-108,Wipro,Data Engineer,78,88,72,76,7.3,1
-109,Meta,AI Research Intern,90,75,92,85,8.8,2
-110,Oracle,Software Engineer,80,80,70,78,7.6,1
+101,Google,ML Engineer,68,71,72,72,8.14,2
+102,Microsoft,Data Scientist,76,59,57,62,7.88,1
+103,Amazon,Data Analyst,77,72,77,75,8.12,3
+104,Infosys,Python Developer,82,80,79,73,8.04,0
+105,TCS,AI Engineer,81,68,83,79,8.42,0
+106,Accenture,ML Engineer 6,81,71,76,78,8.91,3
+107,IBM,Backend Developer,75,63,71,66,8.29,1
+108,Wipro,Data Engineer,79,64,74,67,8.04,2
+109,Meta,AI Research Intern,66,53,63,69,7.83,1
+110,Oracle,Software Engineer,87,80,91,86,8.05,2
+111,Adobe,Data Scientist 11,78,72,82,84,8.42,3
+112,Flipkart,ML Engineer 12,90,86,89,85,8.53,1
+113,Swiggy,Backend Developer 13,61,71,74,73,7.95,3
+114,Zomato,Data Analyst 14,81,82,79,86,8.19,0
+115,Paytm,Python Developer 15,73,68,88,73,7.61,0
+116,HCL,Data Engineer 16,68,60,81,68,8.02,1
+117,Capgemini,AI Engineer 17,75,83,61,65,8.16,0
+118,Deloitte,Data Analyst 18,83,74,89,85,8.16,2
+119,Cognizant,Software Engineer 19,81,76,93,68,8.01,0
+120,Salesforce,ML Engineer 20,71,58,68,69,8.02,2
+121,Uber,Data Scientist 21,56,63,62,67,8.06,2
+122,Ola,Backend Developer 22,70,80,75,82,7.91,0
+123,Byjus,AI Research Intern 23,75,74,74,81,8.6,2
+124,Razorpay,Python Developer 24,82,79,95,84,8.41,0
+125,Freshworks,Software Engineer 25,78,70,76,75,8.82,0
+126,Zoho,Data Engineer 26,83,70,78,74,7.89,0
+127,PhonePe,ML Engineer 27,55,50,74,63,7.98,3
+128,Myntra,Data Analyst 28,77,81,87,78,7.74,2
+129,Nykaa,Python Developer 29,78,67,78,79,8.58,0
+130,CRED,AI Engineer 30,78,92,83,90,8.02,3

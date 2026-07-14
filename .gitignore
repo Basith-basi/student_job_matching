@@ -1,8 +1,9 @@
 # Virtual Environment
 venv/
 .venv/
+env/
 
-# Python
+# Python Cache
 __pycache__/
 *.py[cod]
 *$py.class
@@ -12,9 +13,8 @@ build/
 dist/
 *.egg-info/
 
-# IDE
+# VS Code
 .vscode/
-.idea/
 
 # Jupyter
 .ipynb_checkpoints/
@@ -29,28 +29,25 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Model Files
-*.pkl
-*.joblib
-*.h5
-*.keras
+# Python Packaging
+pip-wheel-metadata/
 
-# Plot Images
-plots/*.png
-
-# Temporary Files
-*.tmp
-*.temp
-
-# Cache
-.cache/
-
-# Testing
+# Pytest
 .pytest_cache/
+
+# Mypy
+.mypy_cache/
 
 # Coverage
 .coverage
 htmlcov/
 
-# SQLite Database
-*.db
+# Temporary Files
+*.tmp
+*.bak
+
+# IDE
+.idea/
+
+# Generated Files (Optional)
+*.sqlite3

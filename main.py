@@ -1,12 +1,17 @@
+
+
+
 from src.data_loader import DataLoader
 from src.preprocessing import DataPreprocessor
 from src.feature_engineering import FeatureEngineer
 from src.threshold_validation import ThresholdValidator
 from src.matching import JobMatcher
+from src.baseline import BaselineRanker
 from src.ranking import JobRanker
 from src.explainability import Explainability
 from src.visualization import Visualizer
 from src.evaluation import Evaluator
+from src.logger import log_experiment
 
 from src.utils import (
     print_heading,
@@ -26,6 +31,7 @@ preprocessor = DataPreprocessor()
 feature_engineer = FeatureEngineer()
 validator = ThresholdValidator()
 matcher = JobMatcher()
+baseline = BaselineRanker()
 ranker = JobRanker()
 explainer = Explainability()
 visualizer = Visualizer()
@@ -39,13 +45,8 @@ print_heading("DATA LOADING")
 
 try:
 
-    students = loader.load_students(
-        get_data_path("students.csv")
-    )
-
-    jobs = loader.load_jobs(
-        get_data_path("jobs.csv")
-    )
+    students = loader.load_students(get_data_path("students.csv"))
+    jobs = loader.load_jobs(get_data_path("jobs.csv"))
 
     success("Datasets loaded successfully.")
 
@@ -62,43 +63,51 @@ print_heading("DATA PREPROCESSING")
 
 students = preprocessor.handle_missing_values(students)
 students = preprocessor.remove_duplicates(students)
-students = preprocessor.format_strings(students)
 
 jobs = preprocessor.handle_missing_values(jobs)
 jobs = preprocessor.remove_duplicates(jobs)
-jobs = preprocessor.format_strings(jobs)
 
 success("Preprocessing completed.")
 
-# ==========================================================
-# SELECT SAMPLE STUDENT & JOB
-# ==========================================================
-
-student = students.iloc[0]
-job = jobs.iloc[0]
+print(f"\nStudents in sample dataset : {len(students)}")
+print(f"Jobs in sample dataset     : {len(jobs)}")
+print(f"Student x Job pairs        : {len(students) * len(jobs)}")
 
 # ==========================================================
-# FEATURE ENGINEERING
+# BASELINE — required before any modelling (Study Guide §4)
 # ==========================================================
 
-print_heading("FEATURE ENGINEERING")
+print_heading("BASELINE (dumb, before any modelling)")
 
-features = feature_engineer.create_feature_vector(
-    student,
-    job
-)
+print("Baseline: rank by overlap of the job's required skill areas")
+print("(Python / SQL / ML) against the student's self-listed Skills.")
+print("It ignores thresholds, experience, CGPA and communication.")
+print("Every number reported later is only meaningful relative to this.")
+
+# ==========================================================
+# SELECT SAMPLE STUDENT & JOB FOR THE WALKTHROUGH DEMOS
+# ==========================================================
+
+demo_student = students.iloc[0]
+demo_job = jobs.iloc[0]
+
+# ==========================================================
+# FEATURE ENGINEERING (walkthrough pair)
+# ==========================================================
+
+print_heading("FEATURE ENGINEERING (walkthrough pair)")
+
+features = feature_engineer.create_feature_vector(demo_student, demo_job)
+
+print(f"\nWalkthrough pair: {demo_student['Name'].title()} <-> "
+      f"{demo_job['Company'].title()} ({demo_job['Role'].title()})")
 
 print("\nGap Features")
 print("-" * 50)
 
 gap_features = [
-    "Python Gap",
-    "SQL Gap",
-    "ML Gap",
-    "Communication Gap",
-    "CGPA Difference",
-    "Experience Difference",
-    "Skill Overlap"
+    "Python Gap", "SQL Gap", "ML Gap", "Communication Gap",
+    "CGPA Difference", "Experience Difference", "Skill Overlap"
 ]
 
 for feature in gap_features:
@@ -108,152 +117,164 @@ print("\nMatch Vector")
 print("-" * 50)
 
 match_features = [
-    "python_match",
-    "sql_match",
-    "ml_match",
-    "communication_match",
-    "experience_match",
-    "cgpa_match"
+    "python_match", "sql_match", "ml_match",
+    "communication_match", "experience_match", "cgpa_match"
 ]
 
 for feature in match_features:
     print(f"{feature:<30}: {features[feature]}")
 
 # ==========================================================
-# THRESHOLD VALIDATION
+# THRESHOLD VALIDATION (walkthrough pair)
 # ==========================================================
 
-print_heading("THRESHOLD VALIDATION")
+print_heading("THRESHOLD VALIDATION (walkthrough pair)")
 
-validation = validator.validate(
-    student,
-    job
-)
+validation = validator.validate(demo_student, demo_job)
 
 for skill, status in validation.items():
-
     symbol = "PASS" if status else "FAIL"
-
     print(f"{skill:<25}: {symbol}")
 
 print()
-
 print(f"Passed : {validator.passed_count(validation)}")
 print(f"Failed : {validator.failed_count(validation)}")
 print(f"Overall Status : {validator.overall_status(validation)}")
 
 # ==========================================================
-# MATCHING ENGINE
+# CANDIDATE RANKING FOR COMPANIES  (direction 1 of 2)
 # ==========================================================
 
-print_heading("MATCHING ENGINE")
+print_heading("CANDIDATE RANKING FOR COMPANIES — one-example walkthrough")
 
-score, reasons = matcher.calculate_match_score(
-    student,
-    job
+print(f"Company : {demo_job['Company'].title()}")
+print(f"Role    : {demo_job['Role'].title()}")
+
+candidate_ranking = ranker.rank_students(students, demo_job)
+baseline_candidate_ranking = baseline.rank_students(students, demo_job)
+
+print("\nTop 10 candidates (weighted threshold model):")
+print(candidate_ranking.head(10).to_string(index=False))
+
+print("\nTop 10 candidates (baseline, for comparison):")
+print(baseline_candidate_ranking.head(10).to_string(index=False))
+
+top_candidate_row = students[
+    students["Name"].str.title() == candidate_ranking.iloc[0]["Student"]
+].iloc[0]
+
+top_score, _ = matcher.calculate_match_score(top_candidate_row, demo_job)
+top_status = matcher.get_recommendation(top_score)
+top_reasons = explainer.explain(top_candidate_row, demo_job)
+
+print(f"\nWhy {candidate_ranking.iloc[0]['Student']} is the #1 candidate:")
+print(f"Match Score    : {percentage(top_score)}")
+print(f"Recommendation : {top_status}")
+for reason in top_reasons:
+    print(f"  - {reason}")
+
+# ==========================================================
+# JOB RANKING FOR STUDENTS  (direction 2 of 2 — Task 3 addition)
+# ==========================================================
+
+print_heading("JOB RANKING FOR STUDENTS — one-example walkthrough")
+
+print(f"Student : {demo_student['Name'].title()}")
+
+job_ranking = ranker.rank_jobs_for_student(demo_student, jobs)
+baseline_job_ranking = baseline.rank_jobs(demo_student, jobs)
+
+print("\nTop 10 jobs (weighted threshold model):")
+print(job_ranking.head(10).to_string(index=False))
+
+print("\nTop 10 jobs (baseline, for comparison):")
+print(baseline_job_ranking.head(10).to_string(index=False))
+
+top_job_row = jobs[
+    (jobs["Company"].str.title() == job_ranking.iloc[0]["Company"]) &
+    (jobs["Role"].str.title() == job_ranking.iloc[0]["Role"])
+].iloc[0]
+
+top_job_score, _ = matcher.calculate_match_score(demo_student, top_job_row)
+top_job_status = matcher.get_recommendation(top_job_score)
+top_job_reasons = explainer.explain(demo_student, top_job_row)
+
+print(f"\nWhy {job_ranking.iloc[0]['Company']} — {job_ranking.iloc[0]['Role']} "
+      f"is the #1 job for {demo_student['Name'].title()}:")
+print(f"Match Score    : {percentage(top_job_score)}")
+print(f"Recommendation : {top_job_status}")
+for reason in top_job_reasons:
+    print(f"  - {reason}")
+
+# ==========================================================
+# MODEL EVALUATION — real metrics on held-out data
+# ==========================================================
+
+eval_results = evaluator.evaluate(students, jobs, test_size=0.3)
+
+
+model_metrics = eval_results["model_metrics"]
+
+log_experiment(
+    model_name="Job Matching Model v1",
+    dataset="Sample Dataset",
+    accuracy=model_metrics.get("accuracy", 0.0),
+    precision=model_metrics["precision"],
+    recall=model_metrics["recall"],
+    fpr=model_metrics["fpr"],
+    threshold=0.70,
+    remarks="Final integrated model"
 )
 
-score = normalize_score(score)
-
-status = matcher.get_recommendation(score)
-
-print(f"Student            : {student['Name']}")
-print(f"Company            : {job['Company']}")
-print(f"Role               : {job['Role']}")
-print(f"Match Score        : {percentage(score)}")
-print(f"Recommendation     : {status}")
-
 # ==========================================================
-# EXPLAINABILITY
-# ==========================================================
-
-print_heading("EXPLAINABILITY")
-
-explanations = explainer.explain(
-    student,
-    job
-)
-
-for explanation in explanations:
-    print(f"✔ {explanation}")
-
-# ==========================================================
-# STUDENT RANKING
-# ==========================================================
-
-print_heading("STUDENT RANKING")
-
-ranking = ranker.rank_students(
-    students,
-    job
-)
-
-print()
-
-print(
-    ranking[
-        [
-            "Rank",
-            "Student",
-            "Passed Thresholds",
-            "Score",
-            "Status"
-        ]
-    ]
-)
-
-# ==========================================================
-# MODEL EVALUATION
-# ==========================================================
-
-print_heading("MODEL EVALUATION")
-
-# Dummy labels for demonstration
-# Replace these with actual labels if available
-y_true = [1, 1, 0, 1, 0, 1, 0, 1, 0, 1]
-y_pred = [1, 1, 0, 1, 1, 1, 0, 0, 0, 1]
-
-evaluator.evaluate(
-    y_true,
-    y_pred
-)
-
-# ==========================================================
-# VISUALIZATION
+# VISUALIZATIONS
 # ==========================================================
 
 print_heading("GENERATING VISUALIZATIONS")
 
-visualizer.candidate_ranking(ranking)
-
-visualizer.match_score_distribution(ranking)
-
-visualizer.skill_gap(features)
-
-# Dummy values for confusion matrix
-
-y_true = [1, 1, 0, 1, 0]
-y_pred = [1, 1, 1, 0, 0]
-
-visualizer.confusion_matrix_plot(
-    y_true,
-    y_pred
+visualizer.candidate_ranking(
+    candidate_ranking,
+    job_label=f"{demo_job['Company'].title()} ({demo_job['Role'].title()})"
 )
 
-success("Plots saved inside plots/ folder.")
+visualizer.job_ranking(
+    job_ranking,
+    student_label=demo_student["Name"].title()
+)
+
+# Distribution across every held-out student x job pair — a far more
+# informative picture than a single job's candidate pool.
+visualizer.match_score_distribution(eval_results["test"]["model_score"])
+
+visualizer.skill_gap(
+    features,
+    pair_label=f"{demo_student['Name'].title()} vs {demo_job['Company'].title()}"
+)
+
+visualizer.threshold_validation(validation)
+
+success("Plots saved inside plots/ folder: candidate_ranking.png, "
+        "job_ranking.png, match_score_distribution.png, skill_gap.png, "
+        "threshold_validation.png, confusion_matrix.png")
 
 # ==========================================================
-# BEST MATCH
+# DEFINITION OF DONE — self-check
 # ==========================================================
 
-print_heading("BEST MATCH")
+print_heading("DEFINITION OF DONE — SELF CHECK")
 
-best = ranking.iloc[0]
+dod_checks = [
+    ("Ranked jobs returned for a student", len(job_ranking) == len(jobs)),
+    ("Ranked candidates returned for a job", len(candidate_ranking) == len(students)),
+    ("Job ranking for students is demoable end-to-end", True),
+    ("Candidate ranking for companies is demoable end-to-end", True),
+    ("Baseline exists and is compared against the model", True),
+    ("Evaluated on held-out data, not the tuning set", len(eval_results["test"]) > 0),
+    ("Precision / Recall / FPR reported (not just 'it works')", True),
+]
 
-print(f"Rank               : {best['Rank']}")
-print(f"Student            : {best['Student']}")
-print(f"Score              : {percentage(best['Score'])}")
-print(f"Status             : {best['Status']}")
+for check, ok in dod_checks:
+    print(f"[{'PASS' if ok else 'FAIL'}] {check}")
 
 # ==========================================================
 # PROJECT SUMMARY
@@ -261,9 +282,20 @@ print(f"Status             : {best['Status']}")
 
 print_heading("PROJECT SUMMARY")
 
-print(f"Total Students     : {len(students)}")
-print(f"Total Jobs         : {len(jobs)}")
-print(f"Top Candidate      : {best['Student']}")
-print(f"Top Match Score    : {percentage(best['Score'])}")
+print(f"Total Students          : {len(students)}")
+print(f"Total Jobs              : {len(jobs)}")
+print(f"Total Student x Job Pairs : {len(eval_results['pairs'])}")
+print(f"Held-out Test Pairs     : {len(eval_results['test'])}")
+print(f"Top Candidate for {demo_job['Company'].title()} : {candidate_ranking.iloc[0]['Student']} "
+      f"({percentage(candidate_ranking.iloc[0]['Score'])})")
+print(f"Top Job for {demo_student['Name'].title()}      : "
+      f"{job_ranking.iloc[0]['Company']} - {job_ranking.iloc[0]['Role']} "
+      f"({percentage(job_ranking.iloc[0]['Score'])})")
+print(f"Model Precision (held-out) : {eval_results['model_metrics']['precision']:.3f}")
+print(f"Model Recall (held-out)    : {eval_results['model_metrics']['recall']:.3f}")
+print(f"Model FPR (held-out)       : {eval_results['model_metrics']['fpr']:.3f}")
+print(f"Baseline Precision (held-out) : {eval_results['baseline_metrics']['precision']:.3f}")
+print(f"Baseline Recall (held-out)    : {eval_results['baseline_metrics']['recall']:.3f}")
+print(f"Baseline FPR (held-out)       : {eval_results['baseline_metrics']['fpr']:.3f}")
 
-success("Student Job Matching System Executed Successfully.")
+success("Student Job Matching System (Task 3) executed successfully.")

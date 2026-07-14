@@ -14,6 +14,7 @@ from src.matching import JobMatcher
 from src.ranking import JobRanker
 from src.explainability import Explainability
 from src.threshold_validation import ThresholdValidator
+from src.evaluation import Evaluator
 from src.utils import logger
 
 
@@ -30,6 +31,7 @@ matcher = JobMatcher()
 ranker = JobRanker()
 explainer = Explainability()
 validator = ThresholdValidator()
+evaluator = Evaluator()
 
 
 # ==========================================================
@@ -266,6 +268,99 @@ def rankings(job_id: int):
             detail="Internal Server Error."
 
         )
+    # ==========================================================
+# Job Ranking for a Student Endpoint   (Task 3 — new direction)
+# ==========================================================
+
+@router.get("/jobs-for-student")
+def jobs_for_student(student_id: int):
+    """
+    The other half of Task 3: given a student, return jobs ranked by
+    fit for THEM — this is what powers the student-facing search view,
+    as opposed to /rankings which powers the company-facing view.
+    """
+
+    try:
+
+        students, jobs = load_data()
+
+        student = students[
+            students["Student_ID"] == student_id
+        ]
+
+        if student.empty:
+
+            raise HTTPException(
+                status_code=404,
+                detail="Student not found."
+            )
+
+        ranking = ranker.rank_jobs_for_student(
+            student.iloc[0],
+            jobs
+        )
+
+        return ranking.to_dict(orient="records")
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
+        logger.error(str(e))
+
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Server Error."
+        )
+
+
+# ==========================================================
+# Metrics Endpoint — real held-out numbers, not claims
+# ==========================================================
+
+@router.get("/metrics")
+def metrics():
+    """
+    Runs the same held-out evaluation used in main.py (baseline vs
+    model, precision/recall/FPR on a 30% held-out split of every
+    student x job pair) and returns the numbers. This is what backs
+    "show numbers, not vibes" from the API surface too, not just the
+    console demo.
+    """
+
+    try:
+
+        students, jobs = load_data()
+
+        results = evaluator.evaluate(students, jobs)
+
+        m = results["model_metrics"]
+        b = results["baseline_metrics"]
+
+        return {
+            "n_train": len(results["train"]),
+            "n_test": len(results["test"]),
+            "model_precision": round(m["precision"], 4),
+            "model_recall": round(m["recall"], 4),
+            "model_f1": round(m["f1"], 4),
+            "model_fpr": round(m["fpr"], 4),
+            "baseline_precision": round(b["precision"], 4),
+            "baseline_recall": round(b["recall"], 4),
+            "baseline_f1": round(b["f1"], 4),
+            "baseline_fpr": round(b["fpr"], 4),
+        }
+
+    except Exception as e:
+
+        logger.error(str(e))
+
+        raise HTTPException(
+            status_code=500,
+            detail="Internal Server Error."
+        )
+
+
     # ==========================================================
 # Job Thresholds Endpoint
 # ==========================================================
