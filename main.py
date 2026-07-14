@@ -153,11 +153,21 @@ print(f"Role    : {demo_job['Role'].title()}")
 candidate_ranking = ranker.rank_students(students, demo_job)
 baseline_candidate_ranking = baseline.rank_students(students, demo_job)
 
-print("\nTop 10 candidates (weighted threshold model):")
-print(candidate_ranking.head(10).to_string(index=False))
 
-print("\nTop 10 candidates (baseline, for comparison):")
-print(baseline_candidate_ranking.head(10).to_string(index=False))
+print("\nTop 10 candidates (weighted threshold model):")
+
+print(
+    candidate_ranking[
+        [
+            "Rank",
+            "Student",
+            "Passed Thresholds",
+            "Score",
+            "Status",
+            "Recommendation"
+        ]
+    ].head(10).to_string(index=False)
+)
 
 top_candidate_row = students[
     students["Name"].str.title() == candidate_ranking.iloc[0]["Student"]
@@ -165,13 +175,27 @@ top_candidate_row = students[
 
 top_score, _ = matcher.calculate_match_score(top_candidate_row, demo_job)
 top_status = matcher.get_recommendation(top_score)
-top_reasons = explainer.explain(top_candidate_row, demo_job)
+top_reasons = explainer.explain(top_candidate_row, demo_job,top_score)
 
-print(f"\nWhy {candidate_ranking.iloc[0]['Student']} is the #1 candidate:")
-print(f"Match Score    : {percentage(top_score)}")
-print(f"Recommendation : {top_status}")
-for reason in top_reasons:
-    print(f"  - {reason}")
+print("\n" + "=" * 60)
+print(f"Why {candidate_ranking.iloc[0]['Student']} is the #1 candidate")
+print("=" * 60)
+
+print(f"\nMatch Score : {percentage(top_score)}")
+print(f"Recommendation : {top_reasons['Recommendation']}")
+
+print("\nMatched Skills")
+for skill in top_reasons["Matched Skills"]:
+    print(f"✔ {skill}")
+
+if top_reasons["Missing Skills"]:
+    print("\nMissing Skills")
+    for skill in top_reasons["Missing Skills"]:
+        print(f"✘ {skill}")
+
+print("\nDetailed Explanation")
+for reason in top_reasons["Explanation"]:
+    print(reason)
 
 # ==========================================================
 # JOB RANKING FOR STUDENTS  (direction 2 of 2 — Task 3 addition)
@@ -185,7 +209,20 @@ job_ranking = ranker.rank_jobs_for_student(demo_student, jobs)
 baseline_job_ranking = baseline.rank_jobs(demo_student, jobs)
 
 print("\nTop 10 jobs (weighted threshold model):")
-print(job_ranking.head(10).to_string(index=False))
+
+print(
+    job_ranking[
+        [
+            "Rank",
+            "Company",
+            "Role",
+            "Passed Thresholds",
+            "Score",
+            "Status",
+            "Recommendation"
+        ]
+    ].head(10).to_string(index=False)
+)
 
 print("\nTop 10 jobs (baseline, for comparison):")
 print(baseline_job_ranking.head(10).to_string(index=False))
@@ -197,14 +234,31 @@ top_job_row = jobs[
 
 top_job_score, _ = matcher.calculate_match_score(demo_student, top_job_row)
 top_job_status = matcher.get_recommendation(top_job_score)
-top_job_reasons = explainer.explain(demo_student, top_job_row)
+top_job_reasons = explainer.explain(demo_student, top_job_row, top_job_score)
 
-print(f"\nWhy {job_ranking.iloc[0]['Company']} — {job_ranking.iloc[0]['Role']} "
-      f"is the #1 job for {demo_student['Name'].title()}:")
-print(f"Match Score    : {percentage(top_job_score)}")
-print(f"Recommendation : {top_job_status}")
-for reason in top_job_reasons:
-    print(f"  - {reason}")
+print("\n" + "=" * 60)
+print(
+    f"Why {job_ranking.iloc[0]['Company']} - "
+    f"{job_ranking.iloc[0]['Role']} is the #1 job "
+    f"for {demo_student['Name'].title()}"
+)
+print("=" * 60)
+
+print(f"\nMatch Score : {percentage(top_job_score)}")
+print(f"Recommendation : {top_job_reasons['Recommendation']}")
+
+print("\nMatched Skills")
+for skill in top_job_reasons["Matched Skills"]:
+    print(f"✔ {skill}")
+
+if top_job_reasons["Missing Skills"]:
+    print("\nMissing Skills")
+    for skill in top_job_reasons["Missing Skills"]:
+        print(f"✘ {skill}")
+
+print("\nDetailed Explanation")
+for reason in top_job_reasons["Explanation"]:
+    print(reason)
 
 # ==========================================================
 # MODEL EVALUATION — real metrics on held-out data
@@ -298,4 +352,4 @@ print(f"Baseline Precision (held-out) : {eval_results['baseline_metrics']['preci
 print(f"Baseline Recall (held-out)    : {eval_results['baseline_metrics']['recall']:.3f}")
 print(f"Baseline FPR (held-out)       : {eval_results['baseline_metrics']['fpr']:.3f}")
 
-success("Student Job Matching System (Task 3) executed successfully.")
+success("Student Job Matching System (Task 4 - Explainability) executed successfully.")

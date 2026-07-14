@@ -46,10 +46,12 @@ def load_data():
     students = preprocessor.handle_missing_values(students)
     students = preprocessor.remove_duplicates(students)
     students = preprocessor.format_strings(students)
+    students["Student_ID"] = students["Student_ID"].astype(int)
 
     jobs = preprocessor.handle_missing_values(jobs)
     jobs = preprocessor.remove_duplicates(jobs)
     jobs = preprocessor.format_strings(jobs)
+    jobs["Job_ID"] = jobs["Job_ID"].astype(int)
 
     return students, jobs
 
@@ -62,13 +64,9 @@ def load_data():
 def home():
 
     return {
-
         "project": "Student Job Matching System",
-
         "version": "1.0.0",
-
         "status": "Running"
-
     }
 
 
@@ -80,11 +78,8 @@ def home():
 def health():
 
     return {
-
         "status": "healthy",
-
         "message": "API is running successfully."
-
     }
 
 
@@ -105,21 +100,21 @@ def predict(request: PredictionRequest):
         students, jobs = load_data()
 
         # ----------------------------------
+        # Lookup student
+        # ----------------------------------
 
         student = students[
             students["Student_ID"] == request.student_id
         ]
 
         if student.empty:
-
             raise HTTPException(
-
                 status_code=404,
-
                 detail="Student not found."
-
             )
 
+        # ----------------------------------
+        # Lookup job
         # ----------------------------------
 
         job = jobs[
@@ -127,42 +122,35 @@ def predict(request: PredictionRequest):
         ]
 
         if job.empty:
-
             raise HTTPException(
-
                 status_code=404,
-
                 detail="Job not found."
-
             )
 
         student = student.iloc[0]
-
         job = job.iloc[0]
 
         # ----------------------------------
-
-                # -----------------------------
         # Feature Engineering
-        # -----------------------------
+        # ----------------------------------
 
         features = feature_engineer.create_feature_vector(
             student,
             job
         )
 
-        # -----------------------------
+        # ----------------------------------
         # Threshold Validation
-        # -----------------------------
+        # ----------------------------------
 
         validation = validator.validate(
             student,
             job
         )
 
-        # -----------------------------
+        # ----------------------------------
         # Matching
-        # -----------------------------
+        # ----------------------------------
 
         score, reasons = matcher.calculate_match_score(
             student,
@@ -171,51 +159,41 @@ def predict(request: PredictionRequest):
 
         recommendation = matcher.get_recommendation(score)
 
-        # -----------------------------
+        # ----------------------------------
         # Explainability
-        # -----------------------------
+        # ----------------------------------
 
         explanation = explainer.explain(
             student,
-            job
+            job,
+            score
         )
 
         logger.info("Prediction completed successfully.")
 
         return PredictionResponse(
-
             student_name=student["Name"],
-
             company=job["Company"],
-
             role=job["Role"],
-
             match_score=score,
-
             status=recommendation,
-
             threshold_validation=validation,
-
             reasons=explanation
-
         )
 
     except HTTPException:
         raise
 
     except Exception as e:
-
         logger.error(str(e))
-
         raise HTTPException(
             status_code=500,
             detail="Internal Server Error."
         )
 
 
-
 # ==========================================================
-# Ranking Endpoint
+# Ranking Endpoint (company-facing: candidates for a job)
 # ==========================================================
 
 @router.get("/rankings")
@@ -230,46 +208,31 @@ def rankings(job_id: int):
         ]
 
         if job.empty:
-
             raise HTTPException(
-
                 status_code=404,
-
                 detail="Job not found."
-
             )
 
         ranking = ranker.rank_students(
-
             students,
-
             job.iloc[0]
-
         )
 
-        return ranking.to_dict(
-
-            orient="records"
-
-        )
+        return ranking.to_dict(orient="records")
 
     except HTTPException:
-
         raise
 
     except Exception as e:
-
         logger.error(str(e))
-
         raise HTTPException(
-
             status_code=500,
-
             detail="Internal Server Error."
-
         )
-    # ==========================================================
-# Job Ranking for a Student Endpoint   (Task 3 — new direction)
+
+
+# ==========================================================
+# Job Ranking for a Student Endpoint (student-facing view)
 # ==========================================================
 
 @router.get("/jobs-for-student")
@@ -289,7 +252,6 @@ def jobs_for_student(student_id: int):
         ]
 
         if student.empty:
-
             raise HTTPException(
                 status_code=404,
                 detail="Student not found."
@@ -306,9 +268,7 @@ def jobs_for_student(student_id: int):
         raise
 
     except Exception as e:
-
         logger.error(str(e))
-
         raise HTTPException(
             status_code=500,
             detail="Internal Server Error."
@@ -351,17 +311,18 @@ def metrics():
             "baseline_fpr": round(b["fpr"], 4),
         }
 
+    except HTTPException:
+        raise
+
     except Exception as e:
-
         logger.error(str(e))
-
         raise HTTPException(
             status_code=500,
             detail="Internal Server Error."
         )
 
 
-    # ==========================================================
+# ==========================================================
 # Job Thresholds Endpoint
 # ==========================================================
 
@@ -377,7 +338,6 @@ def get_thresholds(job_id: int):
         ]
 
         if job.empty:
-
             raise HTTPException(
                 status_code=404,
                 detail="Job not found."
@@ -403,9 +363,7 @@ def get_thresholds(job_id: int):
         raise
 
     except Exception as e:
-
         logger.error(str(e))
-
         raise HTTPException(
             status_code=500,
             detail="Internal Server Error."

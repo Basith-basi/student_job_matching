@@ -13,8 +13,8 @@ class PredictionResponse(BaseModel):
     role: str
     match_score: float
     status: str
-    threshold_validation: Dict[str, bool]
-    reasons: List[str]
+    threshold_validation: dict[str, bool]
+    reasons: dict
 
 
 class JobRankingItem(BaseModel):
