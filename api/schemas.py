@@ -1,5 +1,5 @@
 from typing import Dict, List
-from pydantic import BaseModel
+from pydantic import BaseModel,Field
 
 
 class PredictionRequest(BaseModel):
@@ -36,3 +36,22 @@ class MetricsResponse(BaseModel):
     baseline_recall: float
     baseline_f1: float
     baseline_fpr: float
+
+class JobCreate(BaseModel):
+    job_id: int
+    title: str
+    skills: List[str]
+    company: str
+
+    Python_Threshold: int
+    SQL_Threshold: int
+    ML_Threshold: int
+    Communication_Threshold: int
+    Experience_Threshold: int
+    Minimum_CGPA: float
+
+
+
+class ApplicationCreate(BaseModel):
+    student_id: int
+    job_id: int

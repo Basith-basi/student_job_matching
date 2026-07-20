@@ -2,6 +2,7 @@ import os
 import csv
 from datetime import datetime
 
+from matplotlib import cm
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -122,28 +123,27 @@ class Evaluator:
     # ======================================================
     # Metrics (incl. False Positive Rate)
     # ======================================================
-
     def compute_metrics(self, y_true, y_pred):
 
-        cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
-        tn, fp, fn, tp = cm.ravel()
+     cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
+     tn, fp, fn, tp = cm.ravel()
 
-        precision = precision_score(y_true, y_pred, zero_division=0)
-        recall = recall_score(y_true, y_pred, zero_division=0)
-        f1 = f1_score(y_true, y_pred, zero_division=0)
-        fpr = fp / (fp + tn) if (fp + tn) > 0 else 0.0
+     precision = precision_score(y_true, y_pred, zero_division=0)
+     recall = recall_score(y_true, y_pred, zero_division=0)
+     f1 = f1_score(y_true, y_pred, zero_division=0)
+     fpr = fp / (fp + tn) if (fp + tn) > 0 else 0.0
 
-        return {
-            "precision": precision,
-            "recall": recall,
-            "f1": f1,
-            "fpr": fpr,
-            "tp": int(tp),
-            "fp": int(fp),
-            "tn": int(tn),
-            "fn": int(fn),
-            "confusion_matrix": cm,
-        }
+     return {
+        "precision": float(precision),
+        "recall": float(recall),
+        "f1": float(f1),
+        "fpr": float(fpr),
+        "tp": int(tp),
+        "fp": int(fp),
+        "tn": int(tn),
+        "fn": int(fn),
+    }
+    
 
     # ======================================================
     # Full evaluation: baseline vs model, on held-out data
@@ -196,13 +196,22 @@ class Evaluator:
         self.log_experiment(model_metrics, baseline_metrics, len(train_df), len(test_df))
 
         return {
-            "pairs": pairs,
-            "train": train_df,
-            "test": test_df,
-            "baseline_metrics": baseline_metrics,
-            "model_metrics": model_metrics,
-        }
-
+             "precision": float(model_metrics["precision"]),
+             "recall": float(model_metrics["recall"]),
+             "f1": float(model_metrics["f1"]),
+             "fpr": float(model_metrics["fpr"]),
+             "confusion_matrix": {
+             "tp": int(model_metrics["tp"]),
+             "fp": int(model_metrics["fp"]),
+             "tn": int(model_metrics["tn"]),
+             "fn": int(model_metrics["fn"]),
+    },
+    "pairs": len(pairs),
+    "train_pairs": int(len(train_df)),
+    "test_pairs": int(len(test_df)),
+     
+}
+        
     # ======================================================
     # Confusion Matrix Plot
     # ======================================================

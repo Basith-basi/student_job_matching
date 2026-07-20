@@ -138,25 +138,22 @@ class JobRanker:
             # Match Score
             # ----------------------------------------
 
-            score, _ = self.matcher.calculate_match_score(
-
-                student,
-
-                job
-
-            )
+         score, _ = self.matcher.calculate_match_score(
+         student,
+         job
+    )
 
             # ----------------------------------------
             # Recommendation
             # ----------------------------------------
 
-            status = self.matcher.get_recommendation(score)
+         status = self.matcher.get_recommendation(score)
 
             # ----------------------------------------
             # Threshold Validation
             # ----------------------------------------
 
-            validation = self.validator.validate(
+         validation = self.validator.validate(
 
                 student,
 
@@ -164,14 +161,14 @@ class JobRanker:
 
             )
 
-            passed = sum(validation.values())
-            total = len(validation)
+         passed = sum(validation.values())
+         total = len(validation)
 
             # ----------------------------------------
             # Explainability
             # ----------------------------------------
 
-            explanation = self.explainer.explain(
+         explanation = self.explainer.explain(
 
                 student,
 
@@ -181,7 +178,7 @@ class JobRanker:
 
             )
 
-            rankings.append({
+         rankings.append({
 
                 "Company": job["Company"].title(),
 

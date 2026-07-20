@@ -13,6 +13,8 @@ from src.visualization import Visualizer
 from src.evaluation import Evaluator
 from src.logger import log_experiment
 
+
+
 from src.utils import (
     print_heading,
     success,
@@ -36,6 +38,9 @@ ranker = JobRanker()
 explainer = Explainability()
 visualizer = Visualizer()
 evaluator = Evaluator()
+
+
+
 
 # ==========================================================
 # DATA LOADING
@@ -266,16 +271,19 @@ for reason in top_job_reasons["Explanation"]:
 
 eval_results = evaluator.evaluate(students, jobs, test_size=0.3)
 
-
-model_metrics = eval_results["model_metrics"]
+print(eval_results["precision"])
+print(eval_results["recall"])
+print(eval_results["f1"])
+print(eval_results["fpr"])
+print(eval_results["confusion_matrix"])
 
 log_experiment(
     model_name="Job Matching Model v1",
     dataset="Sample Dataset",
-    accuracy=model_metrics.get("accuracy", 0.0),
-    precision=model_metrics["precision"],
-    recall=model_metrics["recall"],
-    fpr=model_metrics["fpr"],
+    accuracy=eval_results.get("accuracy", 0.0),
+    precision=eval_results.get("precision", 0.0),
+    recall=eval_results.get("recall", 0.0),
+    fpr=eval_results.get("fpr", 0.0),
     threshold=0.70,
     remarks="Final integrated model"
 )
@@ -298,6 +306,8 @@ visualizer.job_ranking(
 
 # Distribution across every held-out student x job pair — a far more
 # informative picture than a single job's candidate pool.
+print(eval_results.keys())
+print(eval_results)
 visualizer.match_score_distribution(eval_results["test"]["model_score"])
 
 visualizer.skill_gap(
