@@ -1,26 +1,13 @@
 # Virtual Environment
 venv/
 .venv/
-env/
 
 # Python Cache
 __pycache__/
 *.py[cod]
-*$py.class
-
-# Distribution
-build/
-dist/
-*.egg-info/
-
-# VS Code
-.vscode/
 
 # Jupyter
 .ipynb_checkpoints/
-
-# Environment Variables
-.env
 
 # Logs
 *.log
@@ -29,25 +16,8 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Python Packaging
-pip-wheel-metadata/
+# VS Code
+.vscode/
 
-# Pytest
-.pytest_cache/
-
-# Mypy
-.mypy_cache/
-
-# Coverage
-.coverage
-htmlcov/
-
-# Temporary Files
-*.tmp
-*.bak
-
-# IDE
-.idea/
-
-# Generated Files (Optional)
-*.sqlite3
+# Environment Variables
+.env
