@@ -15,10 +15,11 @@ from src.logger import log_experiment
 
 
 
+
 from src.utils import (
     print_heading,
-    success,
     error,
+    success,
     normalize_score,
     percentage,
     get_data_path
@@ -308,7 +309,9 @@ visualizer.job_ranking(
 # informative picture than a single job's candidate pool.
 print(eval_results.keys())
 print(eval_results)
-visualizer.match_score_distribution(eval_results["test"]["model_score"])
+#visualizer.match_score_distribution(
+ #   eval_results["test"]["model_score"])
+#
 
 visualizer.skill_gap(
     features,
@@ -333,7 +336,7 @@ dod_checks = [
     ("Job ranking for students is demoable end-to-end", True),
     ("Candidate ranking for companies is demoable end-to-end", True),
     ("Baseline exists and is compared against the model", True),
-    ("Evaluated on held-out data, not the tuning set", len(eval_results["test"]) > 0),
+    ("Evaluated on held-out data, not the tuning set", eval_results["test_pairs"] > 0),
     ("Precision / Recall / FPR reported (not just 'it works')", True),
 ]
 
@@ -348,18 +351,16 @@ print_heading("PROJECT SUMMARY")
 
 print(f"Total Students          : {len(students)}")
 print(f"Total Jobs              : {len(jobs)}")
-print(f"Total Student x Job Pairs : {len(eval_results['pairs'])}")
-print(f"Held-out Test Pairs     : {len(eval_results['test'])}")
+print(f"Total Student x Job Pairs : {eval_results['pairs']}")
+print(f"Held-out Test Pairs : {eval_results['test_pairs']}")
 print(f"Top Candidate for {demo_job['Company'].title()} : {candidate_ranking.iloc[0]['Student']} "
       f"({percentage(candidate_ranking.iloc[0]['Score'])})")
 print(f"Top Job for {demo_student['Name'].title()}      : "
       f"{job_ranking.iloc[0]['Company']} - {job_ranking.iloc[0]['Role']} "
       f"({percentage(job_ranking.iloc[0]['Score'])})")
-print(f"Model Precision (held-out) : {eval_results['model_metrics']['precision']:.3f}")
-print(f"Model Recall (held-out)    : {eval_results['model_metrics']['recall']:.3f}")
-print(f"Model FPR (held-out)       : {eval_results['model_metrics']['fpr']:.3f}")
-print(f"Baseline Precision (held-out) : {eval_results['baseline_metrics']['precision']:.3f}")
-print(f"Baseline Recall (held-out)    : {eval_results['baseline_metrics']['recall']:.3f}")
-print(f"Baseline FPR (held-out)       : {eval_results['baseline_metrics']['fpr']:.3f}")
+print(f"Model Precision (held-out) : {eval_results['precision']:.3f}")
+print(f"Model Recall (held-out)    : {eval_results['recall']:.3f}")
+print(f"Model F1 Score (held-out)  : {eval_results['f1']:.3f}")
+print(f"Model FPR (held-out)       : {eval_results['fpr']:.3f}")
 
 success("Student Job Matching System (Task 4 - Explainability) executed successfully.")

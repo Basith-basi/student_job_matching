@@ -275,4 +275,3 @@ class Evaluator:
                 writer.writerow(header)
             writer.writerow(row)
 
-        print(f"\nExperiment logged to {self.log_path}")

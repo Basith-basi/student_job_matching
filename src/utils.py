@@ -1,5 +1,6 @@
 import os
 import logging
+from pathlib import Path
 
 # ==========================================
 # Logging Configuration
@@ -32,32 +33,20 @@ def percentage(score):
 # ==========================================
 # Headings
 # ==========================================
+def success(message):
+    print(f"[SUCCESS] {message}")
 
+
+def error(message):
+    print(f"[ERROR] {message}")
 def print_heading(title):
     print("\n" + "=" * 60)
     print(title)
     print("=" * 60)
 
 
-# ==========================================
-# Success Message
-# ==========================================
-
-def success(message):
-    logger.info(message)
-
-
-# ==========================================
-# Error Message
-# ==========================================
-
-def error(message):
-    logger.error(message)
-
-
-# ==========================================
-# Data Path
-# ==========================================
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
 def get_data_path(filename):
-    return os.path.join("data", filename)
+    return PROJECT_ROOT / "data" / filename
+

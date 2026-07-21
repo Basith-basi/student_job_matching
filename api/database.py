@@ -3,40 +3,50 @@ import sqlite3
 DATABASE = "student_job_matching.db"
 
 
-# Returns a database connection
+# --------------------------------------------------
+# Get Database Connection
+# --------------------------------------------------
 def get_connection():
-    conn = sqlite3.connect("student_job_matching.db")
+    conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
 
+
+# --------------------------------------------------
+# Create Database & Tables
+# --------------------------------------------------
 def create_database():
-    conn = sqlite3.connect(DATABASE)
+
+    conn = get_connection()
     cursor = conn.cursor()
+
+    # -------------------------------
+    # Drop old tables (Development)
+    # -------------------------------
+    cursor.execute("DROP TABLE IF EXISTS jobs")
+    cursor.execute("DROP TABLE IF EXISTS students")
+    cursor.execute("DROP TABLE IF EXISTS applications")
+    cursor.execute("DROP TABLE IF EXISTS predictions")
 
     # --------------------------------------------------
     # JOBS TABLE
     # --------------------------------------------------
     cursor.execute("""
-CREATE TABLE IF NOT EXISTS jobs (
-    job_id INTEGER PRIMARY KEY,
-    title TEXT NOT NULL,
+    CREATE TABLE jobs (
+        job_id INTEGER PRIMARY KEY AUTOINCREMENT,
     company TEXT NOT NULL,
-    skills TEXT NOT NULL,
-
-    Python_Threshold INTEGER NOT NULL,
-    SQL_Threshold INTEGER NOT NULL,
-    ML_Threshold INTEGER NOT NULL,
-    Communication_Threshold INTEGER NOT NULL,
-    Experience_Threshold INTEGER NOT NULL,
-    Minimum_CGPA REAL NOT NULL
-)
-""")
+    title TEXT NOT NULL,
+    skills TEXT,
+    min_cgpa REAL,
+    min_experience INTEGER
+    )
+    """)
 
     # --------------------------------------------------
     # STUDENTS TABLE
     # --------------------------------------------------
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS students (
+    CREATE TABLE students (
         student_id INTEGER PRIMARY KEY,
         student_name TEXT NOT NULL,
         skills TEXT,
@@ -50,25 +60,11 @@ CREATE TABLE IF NOT EXISTS jobs (
     # APPLICATIONS TABLE
     # --------------------------------------------------
     cursor.execute("""
-    CREATE TABLE IF NOT EXISTS applications (
-    application_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    student_id INTEGER,
-    job_id INTEGER,
-    score REAL,
-    status TEXT
-)
-""")
-
-    # --------------------------------------------------
-    # PREDICTIONS TABLE
-    # --------------------------------------------------
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS predictions (
-        prediction_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER NOT NULL,
-        job_id INTEGER NOT NULL,
-        match_score REAL,
-        recommendation TEXT,
+    CREATE TABLE applications (
+        application_id INTEGER PRIMARY KEY AUTOINCREMENT,
+        student_id INTEGER,
+        job_id INTEGER,
+        score REAL,
         status TEXT,
 
         FOREIGN KEY(student_id) REFERENCES students(student_id),
@@ -76,6 +72,58 @@ CREATE TABLE IF NOT EXISTS jobs (
     )
     """)
 
+  
+     # Predictions Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS predictions (
+
+        prediction_id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        student_id INTEGER NOT NULL,
+
+        job_id INTEGER NOT NULL,
+
+        match_score REAL NOT NULL,
+
+        recommendation TEXT NOT NULL,
+
+        status TEXT NOT NULL,
+
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+        FOREIGN KEY(student_id) REFERENCES students(student_id),
+
+        FOREIGN KEY(job_id) REFERENCES jobs(job_id)
+
+    )
+    """)
+
+    # Payments Table
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS payments (
+
+        payment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        student_name TEXT,
+
+        company TEXT NOT NULL,
+
+        job_id INTEGER NOT NULL,
+                   
+        plan TEXT,          
+
+        amount REAL NOT NULL,
+
+        payment_status TEXT NOT NULL,
+
+        transaction_id TEXT UNIQUE NOT NULL,
+
+        payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+        FOREIGN KEY(job_id) REFERENCES jobs(job_id)
+
+    )
+    """)
     conn.commit()
     conn.close()
 

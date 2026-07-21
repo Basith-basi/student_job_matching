@@ -27,7 +27,7 @@ Student_ID,Name,Skills,Python,SQL,Machine Learning,Communication,Experience,CGPA
 26,Neha,"ML,Communication",60,62,67,82,1,8.24
 27,Arjun,"Python,SQL,ML",83,80,87,78,1,8.61
 28,Divya,"Python,SQL,ML,Communication",71,81,82,99,3,8.52
-29,Rahul,"Python,SQL,ML",91,75,75,69,3,8.58
+29,Rahul,"Python,SQL,ML",91,75,75,69,3,5.58
 30,Sneha,"Python,Communication",68,53,56,91,0,8.05
 31,Vikram,"Python,SQL,ML,Communication",99,86,93,99,2,9.42
 32,Pooja,"Python,SQL,ML,Communication",79,81,70,85,0,8.84
@@ -119,3 +119,4 @@ Student_ID,Name,Skills,Python,SQL,Machine Learning,Communication,Experience,CGPA
 118,Riya3,"SQL,ML",63,78,78,67,0,8.74
 119,Nikhil3,"Python,SQL,ML,Communication",87,69,85,84,1,9.2
 120,Meera3,"Python,SQL,ML,Communication",99,95,99,99,2,9.16
+121,basith,"python,ML,Communication"50,60,90,85,0,5.5

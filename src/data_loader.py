@@ -2,12 +2,8 @@ import pandas as pd
 
 
 class DataLoader:
-    """
-    Loads and validates student and job datasets.
-    """
 
     def __init__(self):
-
         self.student_columns = [
             "Student_ID",
             "Name",
@@ -32,101 +28,28 @@ class DataLoader:
             "Minimum_CGPA"
         ]
 
-    # ======================================================
-    # Load Students
-    # ======================================================
+    def load_students(self, file_path):
+        students = pd.read_csv(file_path)
+        self.validate_columns(students, self.student_columns, "Students")
+        return self.handle_missing_values(students)
 
-    def load_students(self, filepath):
+    def load_jobs(self, file_path):
+        jobs = pd.read_csv(file_path)
+        self.validate_columns(jobs, self.job_columns, "Jobs")
+        return self.handle_missing_values(jobs)
 
-        try:
-
-            df = pd.read_csv(filepath)
-
-            self.validate_columns(
-                df,
-                self.student_columns,
-                "Students"
-            )
-
-            df = self.handle_missing_values(df)
-
-            print("✅ Students dataset loaded successfully.")
-
-            return df
-
-        except Exception as e:
-
-            print(f"❌ Error loading students dataset: {e}")
-
-            return None
-
-    # ======================================================
-    # Load Jobs
-    # ======================================================
-
-    def load_jobs(self, filepath):
-
-        try:
-
-            df = pd.read_csv(filepath)
-
-            self.validate_columns(
-                df,
-                self.job_columns,
-                "Jobs"
-            )
-
-            df = self.handle_missing_values(df)
-
-            print("✅ Jobs dataset loaded successfully.")
-
-            return df
-
-        except Exception as e:
-
-            print(f"❌ Error loading jobs dataset: {e}")
-
-            return None
-
-    # ======================================================
-    # Validate Columns
-    # ======================================================
-
-    def validate_columns(
-        self,
-        df,
-        required_columns,
-        dataset_name
-    ):
-
-        missing_columns = [
-            col
-            for col in required_columns
-            if col not in df.columns
-        ]
-
-        if missing_columns:
-
+    def validate_columns(self, df, required_columns, dataset_name):
+        missing = [c for c in required_columns if c not in df.columns]
+        if missing:
             raise ValueError(
-                f"{dataset_name} dataset is missing columns: {missing_columns}"
+                f"{dataset_name} dataset missing columns: {missing}"
             )
-
-    # ======================================================
-    # Missing Values
-    # ======================================================
 
     def handle_missing_values(self, df):
+        numeric = df.select_dtypes(include="number").columns
+        object_cols = df.select_dtypes(include="object").columns
 
-        numeric_columns = df.select_dtypes(
-            include=["number"]
-        ).columns
-
-        object_columns = df.select_dtypes(
-            include=["object"]
-        ).columns
-
-        df[numeric_columns] = df[numeric_columns].fillna(0)
-
-        df[object_columns] = df[object_columns].fillna("Unknown")
+        df[numeric] = df[numeric].fillna(0)
+        df[object_cols] = df[object_cols].fillna("Unknown")
 
         return df
