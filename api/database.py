@@ -20,33 +20,39 @@ def create_database():
     conn = get_connection()
     cursor = conn.cursor()
 
-    # -------------------------------
-    # Drop old tables (Development)
-    # -------------------------------
-    cursor.execute("DROP TABLE IF EXISTS jobs")
-    cursor.execute("DROP TABLE IF EXISTS students")
-    cursor.execute("DROP TABLE IF EXISTS applications")
-    cursor.execute("DROP TABLE IF EXISTS predictions")
-
     # --------------------------------------------------
     # JOBS TABLE
     # --------------------------------------------------
     cursor.execute("""
-    CREATE TABLE jobs (
-        job_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    company TEXT NOT NULL,
-    title TEXT NOT NULL,
-    skills TEXT,
-    min_cgpa REAL,
-    min_experience INTEGER
-    )
-    """)
+    CREATE TABLE IF NOT EXISTS jobs (
 
+    job_id INTEGER PRIMARY KEY,
+
+    company TEXT,
+
+    role TEXT,
+
+    skills TEXT,
+
+    Python_Threshold INTEGER,
+
+    SQL_Threshold INTEGER,
+
+    ML_Threshold INTEGER,
+
+    Communication_Threshold INTEGER,
+
+    Experience_Threshold INTEGER,
+
+    Minimum_CGPA REAL
+
+)
+""")
     # --------------------------------------------------
     # STUDENTS TABLE
     # --------------------------------------------------
     cursor.execute("""
-    CREATE TABLE students (
+    CREATE TABLE IF NOT EXISTS students (
         student_id INTEGER PRIMARY KEY,
         student_name TEXT NOT NULL,
         skills TEXT,
@@ -60,7 +66,7 @@ def create_database():
     # APPLICATIONS TABLE
     # --------------------------------------------------
     cursor.execute("""
-    CREATE TABLE applications (
+    CREATE TABLE IF NOT EXISTS applications (
         application_id INTEGER PRIMARY KEY AUTOINCREMENT,
         student_id INTEGER,
         job_id INTEGER,
@@ -127,8 +133,9 @@ def create_database():
     conn.commit()
     conn.close()
 
-    print("Database created successfully.")
 
+# Auto-initialize tables on module import
+create_database()
 
 if __name__ == "__main__":
-    create_database()
+    pass

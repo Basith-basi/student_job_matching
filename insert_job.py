@@ -8,10 +8,14 @@ cursor.execute("""
 INSERT INTO jobs
 (
 company,
-title,
+role,
 skills,
-min_cgpa,
-min_experience
+Python_Threshold,
+SQL_Threshold,
+ML_Threshold,
+Communication_Threshold,
+Experience_Threshold,
+Minimum_CGPA
 )
 
 VALUES
@@ -19,8 +23,12 @@ VALUES
 'Google',
 'AI Engineer',
 'Python,ML,SQL',
-7.5,
-1
+85,
+70,
+80,
+60,
+2,
+7.5
 )
 
 """)

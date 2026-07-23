@@ -6,9 +6,6 @@ from pydantic import BaseModel,Field
 # Prediction
 # ==========================================================
 
-class PredictionRequest(BaseModel):
-    student_id: int
-    job_id: int
 
 
 class PredictionResponse(BaseModel):
@@ -141,4 +138,9 @@ class PaymentResponse(BaseModel):
 
 
 class VerifyPaymentRequest(BaseModel):
-    transaction_id: str    
+    transaction_id: str
+
+
+class PredictionRequest(BaseModel):
+    student_id: int
+    job_id: int

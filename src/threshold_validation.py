@@ -1,57 +1,28 @@
 class ThresholdValidator:
-    """
-    Validates whether a student's profile satisfies
-    the minimum job requirements.
-    """
+    """Validates the minimum requirements that define eligibility."""
 
-    def __init__(self):
-        pass
+    REQUIREMENTS = {
+        "Python": "Python_Threshold",
+        "SQL": "SQL_Threshold",
+        "Machine Learning": "ML_Threshold",
+        "Communication": "Communication_Threshold",
+        "Experience": "Experience_Threshold",
+        "CGPA": "Minimum_CGPA",
+    }
 
     def validate(self, student, job):
-        """
-        Returns a dictionary containing the result of each threshold check.
-        All values are converted to Python bool to avoid FastAPI JSON errors.
-        """
-
         result = {
-            "Python": bool(student["Python"] >= job["Python_Threshold"]),
-            "SQL": bool(student["SQL"] >= job["SQL_Threshold"]),
-            "Machine Learning": bool(
-                student["Machine Learning"] >= job["ML_Threshold"]
-            ),
-            "Communication": bool(
-                student["Communication"] >= job["Communication_Threshold"]
-            ),
-            "Experience": bool(
-                student["Experience"] >= job["Experience_Threshold"]
-            ),
-            "CGPA": bool(
-                student["CGPA"] >= job["Minimum_CGPA"]
-            )
+            feature: bool(float(student[feature]) >= float(job[requirement]))
+            for feature, requirement in self.REQUIREMENTS.items()
         }
-         # Add overall result
         result["passed"] = all(result.values())
-
         return result
 
     def passed_count(self, validation_result):
-        """
-        Returns the number of passed thresholds.
-        """
-        return sum(bool(v) for v in validation_result.values())
+        return sum(bool(value) for key, value in validation_result.items() if key != "passed")
 
     def failed_count(self, validation_result):
-        """
-        Returns the number of failed thresholds.
-        """
-        return len(validation_result) - self.passed_count(validation_result)
+        return 6 - self.passed_count(validation_result)
 
     def overall_status(self, validation_result):
-        """
-        Returns overall eligibility status.
-        """
-        return (
-            "Eligible"
-            if all(bool(v) for v in validation_result.values())
-            else "Not Eligible"
-        )
+        return "Eligible" if validation_result["passed"] else "Not Eligible"

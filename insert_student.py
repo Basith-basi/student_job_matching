@@ -10,7 +10,8 @@ INSERT INTO students
 student_name,
 skills,
 cgpa,
-experience
+experience,
+communication
 )
 
 VALUES
@@ -18,7 +19,8 @@ VALUES
 'Michael',
 'Python,SQL,ML',
 8.4,
-2
+2,
+85
 )
 
 """)

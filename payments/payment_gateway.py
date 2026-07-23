@@ -17,11 +17,7 @@ class PaymentGateway:
 
         transaction_id = str(uuid.uuid4())
 
-        status = random.choice([
-            "SUCCESS",
-            "FAILED",
-            "PENDING"
-        ])
+        status = "SUCCESS"  #now its provide success for all transactions, but in real scenario it can be failed or pending as well.
 
         return {
             "transaction_id": transaction_id,

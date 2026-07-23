@@ -21,3 +21,18 @@ Thumbs.db
 
 # Environment Variables
 .env
+
+# Database
+*.db
+database/
+
+# Output artifacts
+outputs/
+plots/*.png
+
+# Experiment logs
+experiments_log.csv
+
+# Node
+node_modules/
+package-lock.json

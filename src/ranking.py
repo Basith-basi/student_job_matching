@@ -1,247 +1,40 @@
-from src.matching import JobMatcher
-from src.threshold_validation import ThresholdValidator
-from src.explainability import Explainability
+"""Ranking views built from the same persisted matcher used by the API."""
 
 import pandas as pd
 
+from src.explainability import Explainability
+from src.matching import JobMatcher
+from src.threshold_validation import ThresholdValidator
+
 
 class JobRanker:
-
     def __init__(self):
-
         self.matcher = JobMatcher()
         self.validator = ThresholdValidator()
         self.explainer = Explainability()
 
-    # =====================================================
-    # Rank Students for a Job
-    # =====================================================
+    def _details(self, student, job):
+        score, recommendation, _ = self.matcher.calculate_match_score(student, job)
+        validation = self.validator.validate(student, job)
+        explanation = self.explainer.explain(student, job, score)
+        return score, recommendation, validation, explanation
 
     def rank_students(self, students, job):
-
-        rankings = []
-
+        rows = []
         for _, student in students.iterrows():
-
-            # ----------------------------------------
-            # Match Score
-            # ----------------------------------------
-
-            score, _ = self.matcher.calculate_match_score(
-                student,
-                job
-            )
-
-            # ----------------------------------------
-            # Recommendation
-            # ----------------------------------------
-
-            status = self.matcher.get_recommendation(score)
-
-            # ----------------------------------------
-            # Threshold Validation
-            # ----------------------------------------
-
-            validation = self.validator.validate(
-                student,
-                job
-            )
-
-            passed = sum(validation.values())
-            total = len(validation)
-
-            # ----------------------------------------
-            # Explainability
-            # ----------------------------------------
-
-            explanation = self.explainer.explain(
-                student,
-                job,
-                score
-            )
-
-            rankings.append({
-
-                "Student": student["Name"].title(),
-
-                "Passed Thresholds": f"{passed}/{total}",
-
-                "Threshold Count": passed,
-
-                "Score": round(score, 2),
-
-                "Status": status,
-
-                "Recommendation":
-                    explanation["Recommendation"],
-
-                "Matched Skills":
-                    ", ".join(explanation["Matched Skills"]),
-
-                "Missing Skills":
-                    ", ".join(explanation["Missing Skills"]),
-
-                "Explanation":
-                    "\n".join(explanation["Explanation"])
-
-            })
-
-        ranking = pd.DataFrame(rankings)
-
-        ranking = ranking.sort_values(
-
-            by=["Threshold Count", "Score"],
-
-            ascending=False
-
-        )
-
-        ranking.reset_index(drop=True, inplace=True)
-
-        ranking["Rank"] = ranking.index + 1
-
-        return ranking[
-            [
-
-                "Rank",
-
-                "Student",
-
-                "Passed Thresholds",
-
-                "Score",
-
-                "Status",
-
-                "Recommendation",
-
-                "Matched Skills",
-
-                "Missing Skills",
-
-                "Explanation"
-
-            ]
-        ]
-
-    # =====================================================
-    # Rank Jobs for a Student
-    # =====================================================
+            score, recommendation, validation, explanation = self._details(student, job)
+            rows.append({"Student": student["Name"], "Passed Thresholds": f"{self.validator.passed_count(validation)}/6", "Threshold Count": self.validator.passed_count(validation), "Score": score, "Status": self.validator.overall_status(validation), "Recommendation": recommendation, "Explanation": explanation["Explanation"]})
+        return self._sorted(rows, "Student")
 
     def rank_jobs_for_student(self, student, jobs):
-
-        rankings = []
-
+        rows = []
         for _, job in jobs.iterrows():
+            score, recommendation, validation, explanation = self._details(student, job)
+            rows.append({"Company": job["Company"], "Role": job["Role"], "Passed Thresholds": f"{self.validator.passed_count(validation)}/6", "Threshold Count": self.validator.passed_count(validation), "Score": score, "Status": self.validator.overall_status(validation), "Recommendation": recommendation, "Explanation": explanation["Explanation"]})
+        return self._sorted(rows, "Company")
 
-            # ----------------------------------------
-            # Match Score
-            # ----------------------------------------
-
-         score, _ = self.matcher.calculate_match_score(
-         student,
-         job
-    )
-
-            # ----------------------------------------
-            # Recommendation
-            # ----------------------------------------
-
-         status = self.matcher.get_recommendation(score)
-
-            # ----------------------------------------
-            # Threshold Validation
-            # ----------------------------------------
-
-         validation = self.validator.validate(
-
-                student,
-
-                job
-
-            )
-
-         passed = sum(validation.values())
-         total = len(validation)
-
-            # ----------------------------------------
-            # Explainability
-            # ----------------------------------------
-
-         explanation = self.explainer.explain(
-
-                student,
-
-                job,
-
-                score
-
-            )
-
-         rankings.append({
-
-                "Company": job["Company"].title(),
-
-                "Role": job["Role"].title(),
-
-                "Passed Thresholds": f"{passed}/{total}",
-
-                "Threshold Count": passed,
-
-                "Score": round(score, 2),
-
-                "Status": status,
-
-                "Recommendation":
-                    explanation["Recommendation"],
-
-                "Matched Skills":
-                    ", ".join(explanation["Matched Skills"]),
-
-                "Missing Skills":
-                    ", ".join(explanation["Missing Skills"]),
-
-                "Explanation":
-                    "\n".join(explanation["Explanation"])
-
-            })
-
-        ranking = pd.DataFrame(rankings)
-
-        ranking = ranking.sort_values(
-
-            by=["Threshold Count", "Score"],
-
-            ascending=False
-
-        )
-
-        ranking.reset_index(drop=True, inplace=True)
-
-        ranking["Rank"] = ranking.index + 1
-
-        return ranking[
-            [
-
-                "Rank",
-
-                "Company",
-
-                "Role",
-
-                "Passed Thresholds",
-
-                "Score",
-
-                "Status",
-
-                "Recommendation",
-
-                "Matched Skills",
-
-                "Missing Skills",
-
-                "Explanation"
-
-            ]
-        ]
+    @staticmethod
+    def _sorted(rows, _label):
+        frame = pd.DataFrame(rows).sort_values(["Threshold Count", "Score"], ascending=False).reset_index(drop=True)
+        frame.insert(0, "Rank", frame.index + 1)
+        return frame

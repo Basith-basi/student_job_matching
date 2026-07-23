@@ -1,882 +1,270 @@
-from email.mime import application
+"""FastAPI routes for the Task 7 matching and pay-per-application flow."""
 
-from fastapi import APIRouter, HTTPException,status
-import sqlite3
+from fastapi import APIRouter, HTTPException
 import pandas as pd
 
 from api.database import get_connection
-from api.schemas import JobCreate, ApplicationCreate
-
+from api.schemas import ApplicationCreate, JobCreate, PaymentRequest, PaymentResponse, PredictionRequest, VerifyPaymentRequest
+from payments.payment_service import PaymentService
+from src.evaluation import Evaluator
+from src.explainability import Explainability
 from src.matching import JobMatcher
 from src.threshold_validation import ThresholdValidator
-from src.explainability import Explainability
-from src.ranking import JobRanker
-from src.evaluation import Evaluator
-from src.data_loader import DataLoader
-from src.preprocessing import DataPreprocessor
-from src.feature_engineering import FeatureEngineer
-from payments.payment_service import PaymentService
-
-from api.schemas import (
-    PaymentRequest,
-    PaymentResponse,
-    VerifyPaymentRequest
-)
 
 
 router = APIRouter()
 payment_service = PaymentService()
-matcher = JobMatcher()
 validator = ThresholdValidator()
 explainer = Explainability()
-ranker = JobRanker()
 evaluator = Evaluator()
 
 STUDENTS_CSV = "data/students.csv"
 JOBS_CSV = "data/jobs.csv"
-
-
-# --------------------------------------------------
-# POST /jobs
-# --------------------------------------------------
-@router.post("/jobs", status_code=201)
-def create_job(job: JobCreate):
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    # --------------------------------------------------
-    # COMPANY PREMIUM SUBSCRIPTION CHECK (Task 6)
-    # --------------------------------------------------
-    cursor.execute(
-        """
-        SELECT *
-        FROM payments
-        WHERE company = ?
-        AND payment_status = 'SUCCESS'
-        """,
-        (job.company,)
-    )
-
-    subscription = cursor.fetchone()
-
-    if subscription is None:
-        conn.close()
-        raise HTTPException(
-            status_code=403,
-            detail="Company Premium Subscription Required"
-        )
-
-    # --------------------------------------------------
-    # VALIDATE THRESHOLDS
-    # --------------------------------------------------
-    if not (0 <= job.python_threshold <= 100):
-        conn.close()
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid Python Threshold"
-        )
-
-    if not (0 <= job.sql_threshold <= 100):
-        conn.close()
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid SQL Threshold"
-        )
-
-    if not (0 <= job.ml_threshold <= 100):
-        conn.close()
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid ML Threshold"
-        )
-
-    if not (0 <= job.communication_threshold <= 100):
-        conn.close()
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid Communication Threshold"
-        )
-
-    if job.experience_threshold < 0:
-        conn.close()
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid Experience Threshold"
-        )
-
-    if not (0 <= job.minimum_cgpa <= 10):
-        conn.close()
-        raise HTTPException(
-            status_code=400,
-            detail="Invalid Minimum CGPA"
-        )
-
-    # --------------------------------------------------
-    # GENERATE NEXT JOB ID
-    # --------------------------------------------------
-    cursor.execute("SELECT MAX(job_id) FROM jobs")
-
-    row = cursor.fetchone()
-
-    if row[0] is None:
-        job_id = 1
-    else:
-        job_id = row[0] + 1
-
-    # --------------------------------------------------
-    # INSERT JOB
-    # --------------------------------------------------
-    cursor.execute("""
-INSERT INTO jobs (
-    job_id,
-    company,
-    role,
-    skills,
-    Python_Threshold,
-    SQL_Threshold,
-    ML_Threshold,
-    Communication_Threshold,
-    Experience_Threshold,
-    Minimum_CGPA
-)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-""",
-(
-    job_id,
-    job.company,
-    job.role,
-    ",".join(job.skills),
-    job.python_threshold,
-    job.sql_threshold,
-    job.ml_threshold,
-    job.communication_threshold,
-    job.experience_threshold,
-    job.minimum_cgpa
-))
-
-    conn.commit()
-    conn.close()
-
-    return {
-        "message": "Job Created Successfully",
-        "job_id": job_id,
-        "company": job.company,
-        "role": job.role,
-        "status": "Premium Verified"
-    }
-# --------------------------------------------------
-# GET /jobs
-# --------------------------------------------------
-@router.get("/jobs")
-def get_jobs():
-
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT
-            job_id,
-            company,
-            title,
-            skills,
-            min_cgpa,
-            min_experience
-        FROM jobs
-        ORDER BY job_id
-    """)
-
-    rows = cursor.fetchall()
-
-    conn.close()
-
-    jobs = []
-
-    for row in rows:
-        jobs.append({
-            "job_id": row["job_id"],
-            "company": row["company"],
-            "title": row["title"],
-            "skills": row["skills"],
-            "min_cgpa": row["min_cgpa"],
-            "min_experience": row["min_experience"]
-        })
-
-    return {
-        "total_jobs": len(jobs),
-        "jobs": jobs
-    }
-# --------------------------------------------------
-# POST /applications
-# --------------------------------------------------
-@router.post("/applications")
-def apply_job(application: ApplicationCreate):
-
-    # -----------------------------
-    # Load Students
-    # -----------------------------
-    students = pd.read_csv(STUDENTS_CSV)
-
-    student_df = students[
-        students["Name"].str.lower() ==
-        application.student.lower()
-    ]
-
-    if student_df.empty:
-        raise HTTPException(
-            status_code=404,
-            detail="Student not found"
-        )
-
-    student = student_df.iloc[0]
-
-    # -----------------------------
-    # Load Job
-    # -----------------------------
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT *
-        FROM jobs
-        WHERE job_id=?
-        """,
-        (application.job_id,)
-    )
-
-    job = cursor.fetchone()
-
-    if job is None:
-        conn.close()
-
-        raise HTTPException(
-            status_code=404,
-            detail="Job not found"
-        )
-
-    job = dict(job)
-    job_series = pd.Series(job)
-
-
-
-     # -----------------------------
-    # PREMIUM CHECK ← INSERT HERE
-    # -----------------------------
-    cursor.execute("""
-        SELECT *
-        FROM payments
-        WHERE student_name=?
-        AND payment_status='SUCCESS'
-    """, (application.student,))
-
-    payment = cursor.fetchone()
-
-    if payment is None:
-        conn.close()
-        raise HTTPException(
-            status_code=403,
-            detail="Student Premium Subscription Required"
-        )
-
-    # -----------------------------
-    # Duplicate Application Check
-    # -----------------------------
-    cursor.execute(
-    """
-    SELECT *
-    FROM applications
-    WHERE student_id=?
-    AND job_id=?
-    """,
-    (
-        student["Student_ID"],
-        application.job_id,
-    )
-)
-
-    if cursor.fetchone():
-
-        conn.close()
-
-        raise HTTPException(
-            status_code=400,
-            detail="Student already applied for this job."
-        )
-
-    # -----------------------------
-    # Threshold Validation
-    # -----------------------------
-    validation = validator.validate(
-        student,
-        job_series
-    )
-
-    # -----------------------------
-    # Match Score
-    # -----------------------------
-    score, _ = matcher.calculate_match_score(
-        student,
-        job_series
-    )
-
-    # -----------------------------
-    # Explainability
-    # -----------------------------
-    explanation = explainer.explain(
-        student,
-        job_series,
-        score
-    )
-
-    # -----------------------------
-    # Recommendation
-    # -----------------------------
-    status = validator.overall_status(validation)
-    if score >= 90:
-
-        recommendation = "Highly Recommended"
-
-    elif score >= 75:
-
-        recommendation = "Recommended"
-
-    elif score >= 60:
-
-        recommendation = "Average Match"
-
-    else:
-
-        recommendation = "Low Match"
-
-    # -----------------------------
-    # Eligibility
-    # -----------------------------
-    status = validator.overall_status(validation)
-
-    # -----------------------------
-    # Save Application
-    # -----------------------------
-    cursor.execute(
-    """
-    INSERT INTO applications
-    (student_id, job_id, score, status)
-    VALUES (?, ?, ?, ?)
-    """,
-    (
-        student["Student_ID"],
-        application.job_id,
-        score,
-        status,
-    )
-)
-
-    conn.commit()
-
-    conn.close()
-
-    # -----------------------------
-    # Response
-    # -----------------------------
-    return {
-    "message": "Application Submitted",
-    "student": application.student,
-    "company": job_series["company"],
-    "score": float(score),
-    "status": status,
-    "recommendation": recommendation,
-    "validation": {
-        k: bool(v)
-        for k, v in validation.items()
-    },
-    "explanation": explanation
-
+APPLICATION_FEE = 100.0
+JOB_COLUMN_MAP = {
+    "job_id": "Job_ID", "company": "Company", "role": "Role",
+    "python_threshold": "Python_Threshold", "sql_threshold": "SQL_Threshold",
+    "ml_threshold": "ML_Threshold", "communication_threshold": "Communication_Threshold",
+    "experience_threshold": "Experience_Threshold", "minimum_cgpa": "Minimum_CGPA",
 }
 
 
+def load_students():
+    return pd.read_csv(STUDENTS_CSV)
 
-# GET /jobs/{job_id}/candidates
-# --------------------------------------------------
-@router.get("/jobs/{job_id}/candidates")
-def get_job_candidates(job_id: int):
 
-    # -----------------------------
-    # Load Students Dataset
-    # -----------------------------
-    students = pd.read_csv(STUDENTS_CSV)
+def get_student_by_id(student_id):
+    students = load_students()
+    rows = students[students["Student_ID"] == student_id]
+    if rows.empty:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return rows.iloc[0]
 
-    # -----------------------------
-    # Get Job from Database
-    # -----------------------------
+
+def get_student_by_name(name):
+    students = load_students()
+    rows = students[students["Name"].str.casefold() == name.casefold()]
+    if rows.empty:
+        raise HTTPException(status_code=404, detail="Student not found")
+    return rows.iloc[0]
+
+
+def get_job_by_id(job_id):
     conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT *
-        FROM jobs
-        WHERE job_id=?
-        """,
-        (job_id,)
-    )
-
-    job = cursor.fetchone()
-
+    row = conn.execute("SELECT * FROM jobs WHERE job_id = ?", (job_id,)).fetchone()
     conn.close()
+    if row is not None:
+        return pd.Series(dict(row)).rename(JOB_COLUMN_MAP)
+    jobs = pd.read_csv(JOBS_CSV)
+    rows = jobs[jobs["Job_ID"] == job_id]
+    if rows.empty:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return rows.iloc[0]
 
-    if job is None:
-        raise HTTPException(
-            status_code=404,
-            detail="Job not found"
-        )
 
-    # -----------------------------
-    # Convert database row to Series
-    # -----------------------------
-    job_series = pd.Series(dict(job))
-
-    # -----------------------------
-    # Rank Students
-    # -----------------------------
-    ranking = ranker.rank_students(
-        students,
-        job_series
-    )
-
-    # -----------------------------
-    # Return Top 10 Candidates
-    # -----------------------------
-    candidates = []
-
-    for _, row in ranking.head(10).iterrows():
-
-        candidates.append({
-
-            "rank": int(row["Rank"]),
-
-            "student": row["Student"],
-
-            "score": float(row["Score"]),
-
-            "status": row["Status"],
-
-            "recommendation": row["Recommendation"]
-
-        })
-
+def match_details(student, job):
+    # Reload the persisted configuration so /metrics tuning is immediately
+    # reflected by every live prediction and ranking response.
+    score, recommendation, reasons = JobMatcher().calculate_match_score(student, job)
+    validation = validator.validate(student, job)
     return {
-
-        "job_id": job_id,
-
-        "company": job["company"],
-
-        "role": job["role"],
-
-        "total_candidates": len(ranking),
-
-        "top_candidates": candidates
-
+        "score": float(score),
+        "recommendation": recommendation,
+        "status": validator.overall_status(validation),
+        "reasons": reasons,
+        "validation": validation,
+        "explanation": explainer.explain(student, job, score),
     }
 
-# --------------------------------------------------
-# GET /students/{student_id}/jobs
-# Student Dashboard
-# --------------------------------------------------
-@router.get("/students/{student_id}/jobs")
-def get_student_jobs(student_id: int):
 
-    # Load datasets
-    students = pd.read_csv(STUDENTS_CSV)
-    jobs = pd.read_csv(JOBS_CSV)
-
-    # Find student
-    student_rows = students[students["Student_ID"] == student_id]
-
-    if student_rows.empty:
-        raise HTTPException(
-            status_code=404,
-            detail="Student not found"
-        )
-
-    student = student_rows.iloc[0]
-
-    # Rank jobs using your existing AI model
-    ranked_jobs = ranker.rank_jobs_for_student(
-        student,
-        jobs
-    )
-
-    # Return only the required fields
-    response = []
-
-    for _, row in ranked_jobs.iterrows():
-
-        response.append(
-            {
-                "company": row["Company"],
-                "role": row["Role"],
-                "score": round(float(row["Score"]), 2),
-                "status": row["Status"],
-                "recommendation": row["Recommendation"]
-            }
-        )
-
-    return response
-# --------------------------------------------------
-# GET /metrics
-# Model Evaluation Metrics
-# --------------------------------------------------
-@router.get("/metrics")
-def get_metrics():
-
-    # Load datasets
-    students = pd.read_csv(STUDENTS_CSV)
-    jobs = pd.read_csv(JOBS_CSV)
-
-    # Evaluate model
-    results = evaluator.evaluate(
-        students,
-        jobs,
-        test_size=0.30
-    )
-
-    return {
-        "precision": round(results["precision"], 3),
-        "recall": round(results["recall"], 3),
-        "f1": round(results["f1"], 3),
-        "fpr": round(results["fpr"], 3),
-        "total_pairs": results["pairs"],
-        "train_pairs": results["train_pairs"],
-        "test_pairs": results["test_pairs"],
-        "confusion_matrix": results["confusion_matrix"]
-    }
-# --------------------------------------------------
-# GET /health
-# Health Check
-# --------------------------------------------------
 @router.get("/health")
 def health():
+    return {"status": "healthy", "service": "student-job-matching", "payment_mode": "test"}
 
-    return {
-        "status": "healthy",
-        "message": "Student Job Matching API is running successfully",
-        "version": "1.0.0"
-    }
 
-@router.post(
-    "/payments",
-    response_model=PaymentResponse
-)
-def create_payment(payment: PaymentRequest):
+@router.get("/metrics")
+def get_metrics():
+    summary = evaluator.evaluate(pd.read_csv(STUDENTS_CSV), pd.read_csv(JOBS_CSV))
+    return summary
 
-    result = payment_service.process_payment(
-        student_name=payment.student_name,
-        company=payment.company,
-        job_id=payment.job_id,
-        plan=payment.plan
-    )
 
+@router.post("/predict")
+def predict(request: PredictionRequest):
+    student = get_student_by_id(request.student_id)
+    job = get_job_by_id(request.job_id)
+    return {"student": student["Name"], "company": job["Company"], "role": job["Role"], **match_details(student, job)}
+
+
+@router.get("/jobs")
+def get_jobs():
+    conn = get_connection()
+    rows = conn.execute("SELECT * FROM jobs ORDER BY job_id").fetchall()
+    conn.close()
+    if rows:
+        return {"total_jobs": len(rows), "jobs": [dict(row) for row in rows]}
+    jobs = pd.read_csv(JOBS_CSV)
+    return {"total_jobs": len(jobs), "jobs": jobs.to_dict(orient="records")}
+
+
+@router.post("/jobs", status_code=201)
+def create_job(job: JobCreate):
+    if not all((0 <= job.python_threshold <= 100, 0 <= job.sql_threshold <= 100, 0 <= job.ml_threshold <= 100, 0 <= job.communication_threshold <= 100, job.experience_threshold >= 0, 0 <= job.minimum_cgpa <= 10)):
+        raise HTTPException(status_code=422, detail="Invalid job thresholds")
+    conn = get_connection()
+    premium = conn.execute("SELECT 1 FROM payments WHERE company = ? AND plan = 'COMPANY_PREMIUM' AND payment_status = 'SUCCESS'", (job.company,)).fetchone()
+    if premium is None:
+        conn.close()
+        raise HTTPException(status_code=403, detail="Company Premium Subscription Required")
+    job_id = (conn.execute("SELECT COALESCE(MAX(job_id), 0) + 1 FROM jobs").fetchone()[0])
+    conn.execute("""INSERT INTO jobs (job_id, company, role, skills, Python_Threshold, SQL_Threshold, ML_Threshold, Communication_Threshold, Experience_Threshold, Minimum_CGPA)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (job_id, job.company, job.role, ",".join(job.skills), job.python_threshold, job.sql_threshold, job.ml_threshold, job.communication_threshold, job.experience_threshold, job.minimum_cgpa))
+    conn.commit()
+    conn.close()
+    return {"message": "Job created", "job_id": job_id, "company": job.company, "role": job.role}
+
+
+@router.post("/applications", status_code=201)
+def apply_job(application: ApplicationCreate):
+    """Charge exactly 100 INR and create an application only after success."""
+    student = get_student_by_name(application.student)
+    job = get_job_by_id(application.job_id)
+    conn = get_connection()
+    duplicate = conn.execute("SELECT 1 FROM applications WHERE student_id = ? AND job_id = ?", (int(student["Student_ID"]), application.job_id)).fetchone()
+    if duplicate:
+        conn.close()
+        raise HTTPException(status_code=409, detail="Student has already applied for this job")
+
+    gateway_result = payment_service.charge_application()
+    try:
+        conn.execute("BEGIN")
+        conn.execute("""INSERT INTO payments (student_name, company, job_id, plan, amount, payment_status, transaction_id)
+                        VALUES (?, ?, ?, 'PAY_PER_APPLICATION', ?, ?, ?)""", (student["Name"], job["Company"], application.job_id, APPLICATION_FEE, gateway_result["status"], gateway_result["transaction_id"]))
+        if gateway_result["status"] != "SUCCESS":
+            conn.commit()
+            return {"application_created": False, "payment_status": gateway_result["status"], "amount": APPLICATION_FEE, "transaction_id": gateway_result["transaction_id"], "message": "Payment was not successful; no application was created."}
+        details = match_details(student, job)
+        conn.execute("INSERT INTO applications (student_id, job_id, score, status) VALUES (?, ?, ?, ?)", (int(student["Student_ID"]), application.job_id, details["score"], details["status"]))
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+    return {"application_created": True, "payment_status": "SUCCESS", "amount": APPLICATION_FEE, "transaction_id": gateway_result["transaction_id"], "student": student["Name"], "company": job["Company"], **details}
+
+
+@router.get("/jobs/{job_id}/candidates")
+def get_job_candidates(job_id: int):
+    job = get_job_by_id(job_id)
+    candidates = []
+    for _, student in load_students().iterrows():
+        details = match_details(student, job)
+        candidates.append({"student": student["Name"], "passed_thresholds": validator.passed_count(details["validation"]), **details})
+    candidates.sort(key=lambda item: (item["passed_thresholds"], item["score"]), reverse=True)
+    for rank, candidate in enumerate(candidates, 1):
+        candidate["rank"] = rank
+        candidate.pop("passed_thresholds")
+    return {"job_id": job_id, "company": job["Company"], "role": job["Role"], "total_candidates": len(candidates), "top_candidates": candidates[:10]}
+
+
+@router.get("/students/{student_id}/jobs")
+def get_student_jobs(student_id: int):
+    student = get_student_by_id(student_id)
+    ranked = []
+    for _, job in pd.read_csv(JOBS_CSV).iterrows():
+        ranked.append({"job_id": int(job["Job_ID"]), "company": job["Company"], "role": job["Role"], **match_details(student, job)})
+    return sorted(ranked, key=lambda item: item["score"], reverse=True)
+
+
+@router.post("/payments", response_model=PaymentResponse)
+def create_subscription_payment(payment: PaymentRequest):
+    result = payment_service.process_payment(payment.student_name, payment.company, payment.job_id, payment.plan)
     if not result["success"]:
-        raise HTTPException(
-            status_code=400,
-            detail=result["message"]
-        )
-
+        raise HTTPException(status_code=400, detail=result["message"])
     return result
+
 
 @router.get("/payments")
 def get_payments():
-
+    """List all payment attempts, newest first."""
     conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute(
-    """
-    INSERT INTO payments (
-        student_name,
-        company,
-        job_id,
-        plan,
-        amount,
-        payment_status,
-        transaction_id
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    """,
-    (
-        payment.student_name,
-        payment.company,
-        payment.job_id,
-        payment.plan,
-        payment.amount,
-        status,
-        transaction_id,
-    ),
-)
-
-    cursor.execute("""
-        SELECT *
-        FROM payments
-        ORDER BY payment_date DESC
-    """)
-
-    payments = cursor.fetchall()
-
+    payments = conn.execute("SELECT * FROM payments ORDER BY payment_date DESC, payment_id DESC").fetchall()
     conn.close()
+    return [dict(payment) for payment in payments]
 
-    return [dict(row) for row in payments]
-
-@router.get("/payments/{payment_id}")
-def get_payment(payment_id: int):
-
-    conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT *
-        FROM payments
-        WHERE payment_id=?
-        """,
-        (payment_id,)
-    )
-
-    payment = cursor.fetchone()
-
-    conn.close()
-
-    if payment is None:
-
-        raise HTTPException(
-            status_code=404,
-            detail="Payment not found"
-        )
-
-    return dict(payment)
 
 @router.post("/payments/verify")
 def verify_payment(request: VerifyPaymentRequest):
-
     conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT *
-        FROM payments
-        WHERE transaction_id=?
-        """,
-        (request.transaction_id,)
-    )
-
-    payment = cursor.fetchone()
-
+    payment = conn.execute("SELECT * FROM payments WHERE transaction_id = ?", (request.transaction_id,)).fetchone()
     conn.close()
-
     if payment is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return {"transaction_id": request.transaction_id, "payment_status": payment["payment_status"], "verified": payment["payment_status"] == "SUCCESS"}
 
-        raise HTTPException(
-            status_code=404,
-            detail="Transaction not found"
-        )
-
-    return {
-
-        "transaction_id": request.transaction_id,
-
-        "payment_status": payment["payment_status"],
-
-        "verified": payment["payment_status"] == "SUCCESS"
-
-    }
 
 @router.get("/payments/history/{student_name}")
 def payment_history(student_name: str):
-
+    """Return all payment attempts for a student."""
     conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT *
-        FROM payments
-        WHERE student_name=?
-        ORDER BY payment_date DESC
-        """,
-        (student_name,)
-    )
-
-    payments = cursor.fetchall()
-
+    payments = conn.execute("SELECT * FROM payments WHERE student_name = ? COLLATE NOCASE ORDER BY payment_date DESC, payment_id DESC", (student_name,)).fetchall()
     conn.close()
+    return [dict(payment) for payment in payments]
 
-    return [dict(row) for row in payments]
 
 @router.get("/payments/company/{company}")
 def company_payments(company: str):
-
+    """Return all payment attempts associated with a company."""
     conn = get_connection()
-
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT *
-        FROM payments
-        WHERE company=?
-        ORDER BY payment_date DESC
-        """,
-        (company,)
-    )
-
-    payments = cursor.fetchall()
-
+    payments = conn.execute("SELECT * FROM payments WHERE company = ? COLLATE NOCASE ORDER BY payment_date DESC, payment_id DESC", (company,)).fetchall()
     conn.close()
+    return [dict(payment) for payment in payments]
 
-    return [dict(row) for row in payments]
+
+@router.get("/payments/{payment_id:int}")
+def get_payment(payment_id: int):
+    conn = get_connection()
+    payment = conn.execute("SELECT * FROM payments WHERE payment_id = ?", (payment_id,)).fetchone()
+    conn.close()
+    if payment is None:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    return dict(payment)
+
 
 @router.get("/dashboard/student/{student}")
 def student_dashboard(student: str):
-
+    """Summarise a CSV-backed student's applications and payment activity."""
+    student_row = get_student_by_name(student)
+    student_id = int(student_row["Student_ID"])
     conn = get_connection()
-    cursor = conn.cursor()
-
-    # -------------------------
-    # Get Student ID
-    # -------------------------
-    cursor.execute(
-        """
-        SELECT student_id
-        FROM students
-        WHERE student_name=?
-        """,
-        (student,)
-    )
-
-    student_row = cursor.fetchone()
-
-    if student_row is None:
-        conn.close()
-        raise HTTPException(
-            status_code=404,
-            detail="Student not found"
-        )
-
-    student_id = student_row["student_id"]
-
-    # -------------------------
-    # Count Applications
-    # -------------------------
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-        FROM applications
-        WHERE student_id=?
-        """,
-        (student_id,)
-    )
-
-    applications = cursor.fetchone()[0]
-
-    # -------------------------
-    # Count Payments
-    # -------------------------
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-        FROM payments
-        WHERE student_name=?
-        """,
-        (student,)
-    )
-
-    payments = cursor.fetchone()[0]
-
-    # -------------------------
-    # Latest Successful Plan
-    # -------------------------
-    cursor.execute(
-        """
-        SELECT plan
-        FROM payments
-        WHERE student_name=?
-        AND payment_status='SUCCESS'
-        ORDER BY payment_date DESC
-        LIMIT 1
-        """,
-        (student,)
-    )
-
-    row = cursor.fetchone()
-
-    if row:
-        plan = row["plan"]
-    else:
-        plan = "FREE"
-
+    application_count = conn.execute("SELECT COUNT(*) FROM applications WHERE student_id = ?", (student_id,)).fetchone()[0]
+    payment_count = conn.execute("SELECT COUNT(*) FROM payments WHERE student_name = ? COLLATE NOCASE", (student_row["Name"],)).fetchone()[0]
+    latest_plan = conn.execute("SELECT plan FROM payments WHERE student_name = ? COLLATE NOCASE AND payment_status = 'SUCCESS' ORDER BY payment_date DESC, payment_id DESC LIMIT 1", (student_row["Name"],)).fetchone()
     conn.close()
-
+    plan = latest_plan["plan"] if latest_plan else "FREE"
     return {
-        "student": student,
+        "student": student_row["Name"],
         "current_plan": plan,
-        "applications": applications,
-        "payments": payments,
-        "remaining": "Unlimited" if plan == "PREMIUM_STUDENT" else "Limited"
+        "applications": application_count,
+        "payments": payment_count,
+        "remaining": "Pay per application" if plan == "PAY_PER_APPLICATION" else "Limited",
     }
+
 
 @router.get("/dashboard/company/{company}")
 def company_dashboard(company: str):
-
+    """Summarise company job postings and subscription payments."""
     conn = get_connection()
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-        FROM jobs
-        WHERE company=?
-        """,
-        (company,)
-    )
-
-    jobs = cursor.fetchone()[0]
-
-    cursor.execute(
-        """
-        SELECT COUNT(*)
-        FROM payments
-        WHERE company=?
-        """,
-        (company,)
-    )
-
-    payment_count = cursor.fetchone()[0]
-
-    cursor.execute(
-        """
-        SELECT plan
-        FROM payments
-        WHERE company=?
-        AND payment_status='SUCCESS'
-        ORDER BY payment_date DESC
-        LIMIT 1
-        """,
-        (company,)
-    )
-
-    row = cursor.fetchone()
-
-    plan = row["plan"] if row else "FREE"
-
+    jobs_posted = conn.execute("SELECT COUNT(*) FROM jobs WHERE company = ? COLLATE NOCASE", (company,)).fetchone()[0]
+    payment_count = conn.execute("SELECT COUNT(*) FROM payments WHERE company = ? COLLATE NOCASE", (company,)).fetchone()[0]
+    latest_plan = conn.execute("SELECT plan FROM payments WHERE company = ? COLLATE NOCASE AND payment_status = 'SUCCESS' ORDER BY payment_date DESC, payment_id DESC LIMIT 1", (company,)).fetchone()
     conn.close()
-
+    plan = latest_plan["plan"] if latest_plan else "FREE"
     return {
         "company": company,
         "current_plan": plan,
         "payments": payment_count,
-        "jobs_posted": jobs,
-        "remaining_jobs": "Unlimited" if plan == "COMPANY_PREMIUM" else 5
+        "jobs_posted": jobs_posted,
+        "remaining_jobs": "Unlimited" if plan == "COMPANY_PREMIUM" else 5,
     }

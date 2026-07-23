@@ -124,3 +124,11 @@ class PaymentService:
             "status": gateway_response["status"],
             "transaction_id": gateway_response["transaction_id"]
         }
+
+    def charge_application(self):
+        """Charge the fixed Task 7 application amount through the test gateway.
+
+        Persistence is deliberately handled by the application endpoint so the
+        payment record and successful application are committed together.
+        """
+        return self.gateway.process_payment(100.0)
