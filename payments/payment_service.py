@@ -76,6 +76,10 @@ class PaymentService:
                 "success": False,
                 "message": message
             }
+        print("Plan:", plan)
+        print("Student:", student_name)
+        print("Company:", company)
+        print("Job:", job_id)
 
         # -----------------------------
         # Gateway

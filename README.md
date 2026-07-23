@@ -1,98 +1,326 @@
 # Student Job Matching Marketplace
 
-A FastAPI-based **Student Job Matching Marketplace** that connects students with companies based on skills, CGPA, and experience. The project also includes job applications, payment processing, subscription plans, dashboards, and REST APIs using SQLite.
+An AI-powered Student Job Matching Marketplace built with **Python, FastAPI, SQLite, Pandas, and Scikit-learn**. The system intelligently matches students with jobs based on verified skills, ranks candidates, provides explainable recommendations, and supports a complete **Pay-per-Application** workflow.
 
 ---
 
 ## Features
 
-- Student Management
-- Job Management
-- AI-based Job Recommendation
-- Student Job Applications
-- Premium Student Subscription
-- Payment Processing & Verification
+### AI Matching Engine
+- Skill-based student-job matching
+- Match score calculation
+- Candidate ranking
+- Job recommendation
+- Threshold validation
+- Explainable AI recommendations
+
+### Marketplace
+- Company job posting
+- Student job application
+- Candidate ranking
+- Student job recommendations
+
+### Payment System (Task 7)
+- Premium subscription plans
+- Pay-per-Application flow
+- Payment validation
+- Payment gateway simulation
+- Payment verification
+- Payment history
+- Duplicate payment prevention
+
+### Dashboard
 - Student Dashboard
 - Company Dashboard
-- REST APIs using FastAPI
-- SQLite Database
-- Interactive Swagger Documentation
+- Match statistics
+- Application statistics
+- Payment statistics
 
 ---
 
-## Tech Stack
+# Tech Stack
 
-- Python 3.x
+- Python 3.9+
 - FastAPI
-- Uvicorn
-- SQLite3
-- Pydantic
+- SQLite
 - Pandas
 - NumPy
 - Scikit-learn
+- Matplotlib
+- Uvicorn
 
 ---
 
-## Project Structure
+# Project Structure
 
-```text
+```
 student_job_matching/
 │
 ├── api/
-│   ├── app.py
 │   ├── routes.py
 │   ├── schemas.py
-│   └── database.py
+│   ├── database.py
+│   └── app.py
 │
 ├── payments/
 │   ├── payment_service.py
 │   ├── payment_gateway.py
-│   ├── plans.py
-│   └── validator.py
+│   ├── payment_validator.py
+│   └── plans.py
 │
 ├── src/
 │   ├── matching.py
 │   ├── ranking.py
-│   ├── preprocessing.py
-│   ├── recommendation.py
-│   └── utils.py
+│   ├── explainability.py
+│   ├── threshold_validation.py
+│   ├── visualization.py
+│   └── evaluation.py
 │
 ├── data/
 │   ├── students.csv
-│   └── jobs.csv
+│   ├── jobs.csv
+│   └── applications.csv
 │
-├── student_job_matching.db
+├── outputs/
+├── plots/
+├── database/
+├── main.py
 ├── requirements.txt
-├── README.md
-└── main.py
+└── README.md
 ```
 
 ---
 
-## Installation
+# AI Pipeline
 
-### Clone Repository
+```
+Student Dataset
+        │
+        ▼
+Feature Extraction
+        │
+        ▼
+Threshold Validation
+        │
+        ▼
+Match Score Calculation
+        │
+        ▼
+Candidate Ranking
+        │
+        ▼
+Explainability
+        │
+        ▼
+Recommendation
+```
+
+---
+
+# Task 7 – Pay-per-Application Flow
+
+The project implements an end-to-end **Pay-per-Application** workflow.
+
+## Flow
+
+```
+Student
+   │
+   ▼
+Predict Job Match
+   │
+   ▼
+Choose Premium Plan
+   │
+   ▼
+Payment Validation
+   │
+   ▼
+Payment Gateway (Test Mode)
+   │
+   ▼
+Payment Success
+   │
+   ▼
+Submit Application
+   │
+   ▼
+Application Saved
+   │
+   ▼
+Candidate Ranking Updated
+```
+
+---
+
+# Matching Features
+
+- Skill Matching
+- Threshold Validation
+- Candidate Ranking
+- Job Recommendation
+- Explainable AI
+- Match Score
+- Recommendation Category
+
+Recommendation Levels
+
+- Highly Recommended
+- Recommended
+- Average Match
+- Low Match
+
+---
+
+# Payment Features
+
+- Premium Student Plan
+- Payment Validation
+- Duplicate Payment Detection
+- Transaction ID Generation
+- Payment Verification
+- Payment History
+- Company Payment Reports
+- Test Payment Gateway
+
+---
+
+# API Endpoints
+
+## Health
+
+```
+GET /health
+```
+
+---
+
+## Metrics
+
+```
+GET /metrics
+```
+
+---
+
+## Predict Match
+
+```
+POST /predict
+```
+
+---
+
+## Job APIs
+
+```
+GET /jobs
+
+POST /jobs
+```
+
+---
+
+## Application APIs
+
+```
+POST /applications
+
+GET /students/{student_id}/jobs
+
+GET /jobs/{job_id}/candidates
+```
+
+---
+
+## Payment APIs
+
+```
+POST /payments
+
+POST /payments/verify
+
+GET /payments
+
+GET /payments/{payment_id}
+
+GET /payments/history/{student_name}
+
+GET /payments/company/{company}
+```
+
+---
+
+## Dashboard APIs
+
+```
+GET /dashboard/student/{student_name}
+
+GET /dashboard/company/{company}
+```
+
+---
+
+# Evaluation Metrics
+
+The matching system is evaluated using:
+
+- Precision
+- Recall
+- F1 Score
+- False Positive Rate
+- Confusion Matrix
+- Match Score Distribution
+
+---
+
+# Explainable AI
+
+Every recommendation includes:
+
+- Match Score
+- Skill Analysis
+- Threshold Validation
+- Recommendation Category
+- Plain-English Explanation
+
+---
+
+# Running the Project
+
+## Clone Repository
 
 ```bash
-git clone <your-github-repository>
+git clone https://github.com/yourusername/student_job_matching.git
+```
+
+```
 cd student_job_matching
 ```
 
-### Create Virtual Environment
+---
+
+## Create Virtual Environment
 
 ```bash
 python -m venv venv
 ```
 
-### Activate Environment
-
-**Windows**
+Windows
 
 ```bash
 venv\Scripts\activate
 ```
 
-### Install Dependencies
+Linux/Mac
+
+```bash
+source venv/bin/activate
+```
+
+---
+
+## Install Requirements
 
 ```bash
 pip install -r requirements.txt
@@ -100,19 +328,15 @@ pip install -r requirements.txt
 
 ---
 
-## Run the Project
+## Run FastAPI
 
 ```bash
-uvicorn api.app:app --reload
+uvicorn main:app --reload
 ```
 
-Server:
+---
 
-```
-http://127.0.0.1:8000
-```
-
-Swagger Documentation:
+## Swagger UI
 
 ```
 http://127.0.0.1:8000/docs
@@ -120,155 +344,52 @@ http://127.0.0.1:8000/docs
 
 ---
 
-# Database Tables
+## ReDoc
 
-- students
-- jobs
-- applications
-- predictions
-- payments
-
----
-
-# Available APIs
-
-## Health
-
-| Method | Endpoint |
-|---------|----------|
-| GET | /health |
-| GET | /metrics |
-
----
-
-## Students
-
-| Method | Endpoint |
-|---------|----------|
-| GET | /students |
-| GET | /students/{id} |
-| GET | /students/{id}/jobs |
-
----
-
-## Jobs
-
-| Method | Endpoint |
-|---------|----------|
-| GET | /jobs |
-| POST | /jobs |
-| GET | /jobs/{job_id} |
-| GET | /jobs/{job_id}/candidates |
-
----
-
-## Applications
-
-| Method | Endpoint |
-|---------|----------|
-| POST | /applications |
-
----
-
-## Payments
-
-| Method | Endpoint |
-|---------|----------|
-| POST | /payments |
-| POST | /payments/verify |
-| GET | /payments/{payment_id} |
-| GET | /payments/history/{student_name} |
-| GET | /payments/company/{company} |
-
----
-
-## Dashboard
-
-| Method | Endpoint |
-|---------|----------|
-| GET | /dashboard/student/{student_name} |
-| GET | /dashboard/company/{company} |
-
----
-
-# Example Request
-
-### Create Job
-
-```json
-{
-  "company": "Google",
-  "title": "AI Engineer",
-  "skills": "Python,ML,SQL",
-  "min_cgpa": 7.5,
-  "min_experience": 1
-}
+```
+http://127.0.0.1:8000/redoc
 ```
 
 ---
 
-### Create Payment
+# Sample Workflow
 
-```json
-{
-  "student_name": "Michael",
-  "company": "Google",
-  "job_id": 1,
-  "plan": "PREMIUM_STUDENT",
-  "amount": 299
-}
-```
-
----
-
-### Apply for Job
-
-```json
-{
-  "student": "Michael",
-  "job_id": 1
-}
-```
+1. Company creates a job.
+2. Student checks job recommendations.
+3. Student purchases a premium plan.
+4. Payment is validated.
+5. Payment is processed.
+6. Student applies for the job.
+7. Match score is calculated.
+8. Candidate is ranked.
+9. Dashboard updates automatically.
 
 ---
 
-# Project Workflow
+# Outputs
 
-1. Register students and jobs.
-2. Store records in SQLite.
-3. Recommend matching jobs.
-4. Students apply for jobs.
-5. Premium subscription payment.
-6. Verify payment.
-7. Track applications.
-8. View Student Dashboard.
-9. View Company Dashboard.
-
----
-
-# Current Progress
-
-- Student APIs
-- Job APIs
-- Recommendation APIs
-- Payment APIs
-- Payment Verification
+- Match Scores
+- Candidate Ranking
+- Job Recommendations
+- Explainability Report
+- Threshold Validation
+- Payment Records
 - Student Dashboard
 - Company Dashboard
-- SQLite Integration
-- Swagger Documentation
+- Evaluation Metrics
 
 ---
 
 # Future Improvements
 
+- Real payment gateway integration (Razorpay/Stripe)
 - JWT Authentication
-- Resume Upload
-- Email Notifications
-- Machine Learning Match Score
-- Docker Deployment
-- CI/CD Pipeline
-- PostgreSQL Support
+- Role-based authorization
+- PostgreSQL/MySQL support
+- MLflow experiment tracking
+- Resume parsing using NLP
+- Vector similarity search
+- Cloud deployment (AWS/Azure)
 
 ---
 
@@ -276,4 +397,10 @@ http://127.0.0.1:8000/docs
 
 **Abdul Basith**
 
-B.Tech – Artificial Intelligence and Data Science
+B.Tech Artificial Intelligence & Data Science
+
+---
+
+# License
+
+This project is developed for educational and internship purposes.

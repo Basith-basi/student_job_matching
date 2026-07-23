@@ -123,8 +123,7 @@ class PaymentRequest(BaseModel):
     company: str
     job_id: int
     plan: str
-    amount: float
-
+   
 
 class PaymentResponse(BaseModel):
     success: bool
