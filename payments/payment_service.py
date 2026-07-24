@@ -1,9 +1,10 @@
 import sqlite3
+import uuid
 
 from payments.plans import PLANS
 from payments.payment_gateway import PaymentGateway
 from payments.payment_validator import PaymentValidator
-
+from payments.failure_handler import PaymentFailureHandler
 
 DATABASE = "student_job_matching.db"
 
@@ -17,7 +18,7 @@ class PaymentService:
 
         self.gateway = PaymentGateway()
         self.validator = PaymentValidator()
-
+        self.failure_handler = PaymentFailureHandler()
     def process_payment(
         self,
         student_name: str,
@@ -82,10 +83,58 @@ class PaymentService:
         print("Job:", job_id)
 
         # -----------------------------
+        # Handle FREE plan (no payment needed)
+        # -----------------------------
+        if plan == "FREE":
+            cursor.execute(
+                """
+                INSERT INTO payments
+                (
+                    student_name,
+                    company,
+                    job_id,
+                    plan,
+                    amount,
+                    payment_status,
+                    transaction_id
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    student_name,
+                    company,
+                    job_id,
+                    plan,
+                    0,
+                    "SUCCESS",
+                    "FREE_TXN_" + str(uuid.uuid4())
+                )
+            )
+            conn.commit()
+            conn.close()
+            return {
+                "success": True,
+                "student": student_name,
+                "company": company,
+                "job_id": job_id,
+                "plan": plan,
+                "amount": 0,
+                "status": "SUCCESS",
+                "transaction_id": "FREE_TXN_" + str(uuid.uuid4())
+            }
+
+        # -----------------------------
         # Gateway
         # -----------------------------
         gateway_response = self.gateway.process_payment(amount)
+        # -----------------------------
+       # Payment Failure Handling
+       # -----------------------------
+        if gateway_response["status"] != "SUCCESS":
 
+         conn.close()
+
+         return self.failure_handler.payment_failed()
         # -----------------------------
         # Save Payment
         # -----------------------------

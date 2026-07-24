@@ -119,6 +119,13 @@ class ApplicationCreate(BaseModel):
             data["student"] = data.pop("student_name")
         return data
 
+    @model_validator(mode="after")
+    @classmethod
+    def require_student_identifier(cls, data: Any) -> Any:
+        if not data.student and not data.student_id:
+            raise ValueError("Either 'student' (name) or 'student_id' must be provided")
+        return data
+
 
 class ApplicationResponse(BaseModel):
     message: str
@@ -148,7 +155,7 @@ class HealthResponse(BaseModel):
     status: str
 
 class PaymentRequest(BaseModel):
-    student_name: str
+    student_name: str = Field("", validation_alias=AliasChoices("student_name", "student"))
     company: str
     job_id: int
     plan: str

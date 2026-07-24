@@ -15,6 +15,10 @@ from payments.receipt_service import ReceiptService
 from payments.refund_service import RefundService
 from payments.reconciliation import Reconciliation
 from payments.reconciliation_service import ReconciliationService
+from src.conversion_quality import ConversionQualityChecker
+from payments.failure_handler import PaymentFailureHandler
+from payments.retry import RetryPayment
+from payments.payment_logs import PaymentLogs
 
 router = APIRouter()
 payment_service = PaymentService()
@@ -26,6 +30,10 @@ receipt_service = ReceiptService()
 refund_service = RefundService()
 reconciliation = Reconciliation()
 reconciliation_service = ReconciliationService()
+quality_checker = ConversionQualityChecker()
+failure_handler = PaymentFailureHandler()
+retry_service = RetryPayment()
+payment_logs = PaymentLogs()
 
 STUDENTS_CSV = "data/students.csv"
 JOBS_CSV = "data/jobs.csv"
@@ -141,72 +149,189 @@ def create_job(job: JobCreate):
 
 @router.post("/applications")
 def apply_job(application: ApplicationCreate):
-    """Charge exactly 100 INR and create an application only after success."""
+    """
+    Pay ₹100 -> Spend Guardrail -> Save Payment ->
+    Conversion Quality -> Save Application
+    """
+
+    # -----------------------------
+    # Get Student
+    # -----------------------------
     if application.student_id:
         student = get_student_by_id(application.student_id)
     else:
         student = get_student_by_name(application.student)
+
+    # -----------------------------
+    # Get Job
+    # -----------------------------
     job = get_job_by_id(application.job_id)
+
     conn = get_connection()
-    duplicate = conn.execute("SELECT 1 FROM applications WHERE student_id = ? AND job_id = ?", (int(student["Student_ID"]), application.job_id)).fetchone()
+
+    # -----------------------------
+    # Duplicate Check
+    # -----------------------------
+    duplicate = conn.execute(
+        """
+        SELECT 1
+        FROM applications
+        WHERE student_id=?
+        AND job_id=?
+        """,
+        (
+            int(student["Student_ID"]),
+            application.job_id
+        )
+    ).fetchone()
+
     if duplicate:
         conn.close()
-        raise HTTPException(status_code=409, detail="Student has already applied for this job")
+        raise HTTPException(
+            status_code=409,
+            detail="Student already applied for this job."
+        )
 
-    gateway_result = payment_service.charge_application()
-    try:
-        conn.execute("BEGIN")
-        conn.execute("""INSERT INTO payments (student_name, company, job_id, plan, amount, payment_status, transaction_id)
-                        VALUES (?, ?, ?, 'PAY_PER_APPLICATION', ?, ?, ?)""", (student["Name"], job["Company"], application.job_id, APPLICATION_FEE, gateway_result["status"], gateway_result["transaction_id"]))
-        if gateway_result["status"] != "SUCCESS":
-            conn.commit()
-            return {"application_created": False, "payment_status": gateway_result["status"], "amount": APPLICATION_FEE, "transaction_id": gateway_result["transaction_id"], "message": "Payment was not successful; no application was created."}
-        details = match_details(student, job)
-        guardrail_result = guardrail.evaluate(details["score"])
+    # -----------------------------
+    # Match Score
+    # -----------------------------
+    details = match_details(student, job)
 
-        if not guardrail_result["allow_payment"]:
-            conn.rollback()
-            conn.close()
-            raise HTTPException(
-                status_code=400,
-                detail={
-                    "warning": guardrail_result["warning"],
-                    "message": guardrail_result["message"],
-                    "score": details["score"]
-                }
-            )
-        conn.execute("INSERT INTO applications (student_id, job_id, score, status) VALUES (?, ?, ?, ?)", (int(student["Student_ID"]), application.job_id, details["score"], details["status"]))
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
+    score = details["score"]
+
+    # -----------------------------
+    # Spend Guardrail (Task 8)
+    # -----------------------------
+    guardrail_result = guardrail.evaluate(score)
+
+    if not guardrail_result["allow_payment"]:
+
         conn.close()
 
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "warning": guardrail_result["warning"],
+                "message": guardrail_result["message"],
+                "score": score
+            }
+        )
+
+    # -----------------------------
+    # Payment Gateway (Task 7)
+    # -----------------------------
+    gateway_result = payment_service.charge_application()
+
+    # -----------------------------
+    # Save Payment (always, regardless of status)
+    # -----------------------------
+    conn.execute(
+        """
+        INSERT INTO payments
+        (
+            student_name,
+            company,
+            job_id,
+            plan,
+            amount,
+            payment_status,
+            transaction_id
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            student["Name"],
+            job["Company"],
+            application.job_id,
+            "PAY_PER_APPLICATION",
+            APPLICATION_FEE,
+            gateway_result["status"],
+            gateway_result["transaction_id"]
+        )
+    )
+    conn.commit()
+
+    # -----------------------------
+    # Payment Failure Handler (Task 9)
+    # -----------------------------
+    if gateway_result["status"] != "SUCCESS":
+
+        conn.close()
+
+        return failure_handler.payment_failed(gateway_result["status"])
+
+    try:
+
+        # -----------------------------
+        # Conversion Quality (Task 9)
+        # -----------------------------
+        quality = quality_checker.compare(
+            before_score=score,
+            after_score=score
+        )
+
+        # -----------------------------
+        # Save Application
+        # -----------------------------
+        conn.execute(
+            """
+            INSERT INTO applications
+            (
+                student_id,
+                job_id,
+                score,
+                status
+            )
+            VALUES (?, ?, ?, ?)
+            """,
+            (
+                int(student["Student_ID"]),
+                application.job_id,
+                score,
+                details["status"]
+            )
+        )
+
+        conn.commit()
+
+    except Exception:
+
+        conn.rollback()
+        raise
+
+    finally:
+
+        conn.close()
+
+    # -----------------------------
+    # Response
+    # -----------------------------
     return {
 
-    "application_created": True,
+        "application_created": True,
 
-    "payment_status": "SUCCESS",
+        "payment_status": gateway_result["status"],
 
-    "amount": APPLICATION_FEE,
+        "amount": APPLICATION_FEE,
 
-    "transaction_id": gateway_result["transaction_id"],
+        "transaction_id": gateway_result["transaction_id"],
 
-    "student": student["Name"],
+        "student": student["Name"],
 
-    "company": job["Company"],
+        "company": job["Company"],
 
-    "score": details["score"],
+        "score": score,
 
-    "recommendation": details["recommendation"],
+        "recommendation": details["recommendation"],
 
-    "warning": guardrail_result["warning"],
+        "warning": guardrail_result["warning"],
 
-    "message": guardrail_result["message"],
+        "message": guardrail_result["message"],
 
-    **details
-}
+        "conversion_quality": quality,
+
+        **details
+    }
 
 
 @router.get("/rankings/{job_id}")
@@ -347,3 +472,33 @@ def refund(transaction_id: str):
 @router.get("/reconciliation")
 def reconciliation_report():
     return reconciliation_service.generate_report()
+
+@router.get("/conversion-quality")
+def conversion_quality():
+
+    before_score = 92
+    after_score = 92
+
+    result = quality_checker.compare(
+        before_score,
+        after_score
+    )
+
+    return result
+@router.post("/payments/fail")
+def simulate_payment_failure():
+
+    return failure_handler.payment_failed()
+@router.post("/payments/retry")
+def retry_payment():
+
+    return retry_service.retry()
+
+@router.get("/logs/payments")
+def get_payment_logs():
+
+    return {
+
+        "logs": payment_logs.get_logs()
+
+    }

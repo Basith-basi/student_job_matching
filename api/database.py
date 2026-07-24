@@ -177,6 +177,19 @@ CREATE TABLE IF NOT EXISTS receipts (
         checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """)
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS payment_attempts(
+
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+    transaction_id TEXT,
+
+    status TEXT,
+
+    attempt INTEGER
+
+)
+""")
     
     conn.commit()
     conn.close()
