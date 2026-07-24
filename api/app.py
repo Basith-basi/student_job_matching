@@ -46,20 +46,3 @@ def home():
         "version": "1.0.0",
         "status": "Running"
     }
-
-
-# ==========================================================
-# Health Check
-# ==========================================================
-
-@app.get(
-    "/health",
-    tags=["Health"]
-)
-def health():
-    """
-    Check whether the API is running.
-    """
-    return {
-        "status": "healthy"
-    }

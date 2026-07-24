@@ -1,5 +1,5 @@
-from typing import Dict, List
-from pydantic import BaseModel,Field
+from typing import Any, Dict, List
+from pydantic import AliasChoices, BaseModel, Field, field_validator, model_validator
 
 
 # ==========================================================
@@ -55,15 +55,42 @@ class MetricsResponse(BaseModel):
 # ==========================================================
 
 class JobCreate(BaseModel):
-    company: str
-    role: str
-    skills: List[str]
-    python_threshold: int
-    sql_threshold: int
-    ml_threshold: int
-    communication_threshold: int
-    experience_threshold: int
-    minimum_cgpa: float
+    company: str = ""
+    role: str = ""
+    skills: List[str] = []
+    python_threshold: int = 50
+    sql_threshold: int = 50
+    ml_threshold: int = 50
+    communication_threshold: int = 50
+    experience_threshold: int = 0
+    minimum_cgpa: float = 7.0
+    job_id: int = 0
+
+    @field_validator("skills", mode="before")
+    @classmethod
+    def parse_skills(cls, v):
+        if isinstance(v, str):
+            return [s.strip() for s in v.split(",") if s.strip()]
+        return v
+
+    @model_validator(mode="before")
+    @classmethod
+    def convert_old_format(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        old_to_new = {
+            "title": "role",
+            "Python_Threshold": "python_threshold",
+            "SQL_Threshold": "sql_threshold",
+            "ML_Threshold": "ml_threshold",
+            "Communication_Threshold": "communication_threshold",
+            "Experience_Threshold": "experience_threshold",
+            "Minimum_CGPA": "minimum_cgpa",
+        }
+        for old, new in old_to_new.items():
+            if old in data and new not in data:
+                data[new] = data.pop(old)
+        return data
 
 
 class JobResponse(BaseModel):
@@ -79,16 +106,18 @@ class JobResponse(BaseModel):
 # ==========================================================
 
 class ApplicationCreate(BaseModel):
-    student: str = Field(
-        ...,
-        min_length=1,
-        description="Student name"
-    )
-    job_id: int = Field(
-        ...,
-        gt=0,
-        description="Job ID"
-    )
+    student: str = ""
+    student_id: int = 0
+    job_id: int = Field(..., gt=0, description="Job ID")
+
+    @model_validator(mode="before")
+    @classmethod
+    def convert_old_format(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        if "student_name" in data and "student" not in data:
+            data["student"] = data.pop("student_name")
+        return data
 
 
 class ApplicationResponse(BaseModel):

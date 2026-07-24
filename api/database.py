@@ -130,12 +130,85 @@ def create_database():
 
     )
     """)
+
+    
+    cursor.execute("""
+CREATE TABLE IF NOT EXISTS receipts (
+    receipt_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    transaction_id TEXT,
+    student_name TEXT,
+    company TEXT,
+    amount REAL,
+    status TEXT
+)
+""")
+    
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS refunds(
+
+        refund_id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        payment_id INTEGER,
+
+        reason TEXT,
+
+        amount REAL,
+
+        refund_status TEXT,
+
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+          """)
+
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS reconciliation(
+
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+        payment_id INTEGER,
+
+        gateway_amount REAL,
+        
+        database_amount REAL,
+
+        status TEXT,
+
+        checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+    
     conn.commit()
     conn.close()
 
 
-# Auto-initialize tables on module import
+def seed_jobs_from_csv(csv_path="data/jobs.csv"):
+    """Seed jobs table from CSV if table is empty."""
+    import pandas as pd
+    conn = get_connection()
+    count = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
+    if count > 0:
+        conn.close()
+        return
+    try:
+        jobs = pd.read_csv(csv_path)
+        for _, row in jobs.iterrows():
+            conn.execute("""INSERT OR IGNORE INTO jobs
+                (job_id, company, role, skills, Python_Threshold, SQL_Threshold, ML_Threshold, Communication_Threshold, Experience_Threshold, Minimum_CGPA)
+                VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, ?)""",
+                (int(row["Job_ID"]), row["Company"], row["Role"],
+                 int(row["Python_Threshold"]), int(row["SQL_Threshold"]), int(row["ML_Threshold"]),
+                 int(row["Communication_Threshold"]), int(row["Experience_Threshold"]), float(row["Minimum_CGPA"])))
+        conn.commit()
+    except FileNotFoundError:
+        pass
+    finally:
+        conn.close()
+
+
+# Auto-initialize tables and seed data on module import
 create_database()
+seed_jobs_from_csv()
 
 if __name__ == "__main__":
     pass

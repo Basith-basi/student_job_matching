@@ -10,13 +10,22 @@ from src.evaluation import Evaluator
 from src.explainability import Explainability
 from src.matching import JobMatcher
 from src.threshold_validation import ThresholdValidator
-
+from src.spend_guardrail import SpendGuardrail
+from payments.receipt_service import ReceiptService
+from payments.refund_service import RefundService
+from payments.reconciliation import Reconciliation
+from payments.reconciliation_service import ReconciliationService
 
 router = APIRouter()
 payment_service = PaymentService()
 validator = ThresholdValidator()
 explainer = Explainability()
 evaluator = Evaluator()
+guardrail = SpendGuardrail()
+receipt_service = ReceiptService()
+refund_service = RefundService()
+reconciliation = Reconciliation()
+reconciliation_service = ReconciliationService()
 
 STUDENTS_CSV = "data/students.csv"
 JOBS_CSV = "data/jobs.csv"
@@ -106,16 +115,23 @@ def get_jobs():
     return {"total_jobs": len(jobs), "jobs": jobs.to_dict(orient="records")}
 
 
-@router.post("/jobs", status_code=201)
+@router.post("/jobs")
 def create_job(job: JobCreate):
     if not all((0 <= job.python_threshold <= 100, 0 <= job.sql_threshold <= 100, 0 <= job.ml_threshold <= 100, 0 <= job.communication_threshold <= 100, job.experience_threshold >= 0, 0 <= job.minimum_cgpa <= 10)):
         raise HTTPException(status_code=422, detail="Invalid job thresholds")
+    if not job.company:
+        raise HTTPException(status_code=422, detail="Company is required")
+    if not job.skills:
+        raise HTTPException(status_code=422, detail="At least one skill is required")
     conn = get_connection()
-    premium = conn.execute("SELECT 1 FROM payments WHERE company = ? AND plan = 'COMPANY_PREMIUM' AND payment_status = 'SUCCESS'", (job.company,)).fetchone()
-    if premium is None:
-        conn.close()
-        raise HTTPException(status_code=403, detail="Company Premium Subscription Required")
-    job_id = (conn.execute("SELECT COALESCE(MAX(job_id), 0) + 1 FROM jobs").fetchone()[0])
+    if job.job_id:
+        existing = conn.execute("SELECT 1 FROM jobs WHERE job_id = ?", (job.job_id,)).fetchone()
+        if existing:
+            conn.close()
+            raise HTTPException(status_code=409, detail=f"Job with ID {job.job_id} already exists")
+        job_id = job.job_id
+    else:
+        job_id = conn.execute("SELECT COALESCE(MAX(job_id), 0) + 1 FROM jobs").fetchone()[0]
     conn.execute("""INSERT INTO jobs (job_id, company, role, skills, Python_Threshold, SQL_Threshold, ML_Threshold, Communication_Threshold, Experience_Threshold, Minimum_CGPA)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", (job_id, job.company, job.role, ",".join(job.skills), job.python_threshold, job.sql_threshold, job.ml_threshold, job.communication_threshold, job.experience_threshold, job.minimum_cgpa))
     conn.commit()
@@ -123,10 +139,13 @@ def create_job(job: JobCreate):
     return {"message": "Job created", "job_id": job_id, "company": job.company, "role": job.role}
 
 
-@router.post("/applications", status_code=201)
+@router.post("/applications")
 def apply_job(application: ApplicationCreate):
     """Charge exactly 100 INR and create an application only after success."""
-    student = get_student_by_name(application.student)
+    if application.student_id:
+        student = get_student_by_id(application.student_id)
+    else:
+        student = get_student_by_name(application.student)
     job = get_job_by_id(application.job_id)
     conn = get_connection()
     duplicate = conn.execute("SELECT 1 FROM applications WHERE student_id = ? AND job_id = ?", (int(student["Student_ID"]), application.job_id)).fetchone()
@@ -143,6 +162,19 @@ def apply_job(application: ApplicationCreate):
             conn.commit()
             return {"application_created": False, "payment_status": gateway_result["status"], "amount": APPLICATION_FEE, "transaction_id": gateway_result["transaction_id"], "message": "Payment was not successful; no application was created."}
         details = match_details(student, job)
+        guardrail_result = guardrail.evaluate(details["score"])
+
+        if not guardrail_result["allow_payment"]:
+            conn.rollback()
+            conn.close()
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "warning": guardrail_result["warning"],
+                    "message": guardrail_result["message"],
+                    "score": details["score"]
+                }
+            )
         conn.execute("INSERT INTO applications (student_id, job_id, score, status) VALUES (?, ?, ?, ?)", (int(student["Student_ID"]), application.job_id, details["score"], details["status"]))
         conn.commit()
     except Exception:
@@ -151,9 +183,33 @@ def apply_job(application: ApplicationCreate):
     finally:
         conn.close()
 
-    return {"application_created": True, "payment_status": "SUCCESS", "amount": APPLICATION_FEE, "transaction_id": gateway_result["transaction_id"], "student": student["Name"], "company": job["Company"], **details}
+    return {
+
+    "application_created": True,
+
+    "payment_status": "SUCCESS",
+
+    "amount": APPLICATION_FEE,
+
+    "transaction_id": gateway_result["transaction_id"],
+
+    "student": student["Name"],
+
+    "company": job["Company"],
+
+    "score": details["score"],
+
+    "recommendation": details["recommendation"],
+
+    "warning": guardrail_result["warning"],
+
+    "message": guardrail_result["message"],
+
+    **details
+}
 
 
+@router.get("/rankings/{job_id}")
 @router.get("/jobs/{job_id}/candidates")
 def get_job_candidates(job_id: int):
     job = get_job_by_id(job_id)
@@ -268,3 +324,26 @@ def company_dashboard(company: str):
         "jobs_posted": jobs_posted,
         "remaining_jobs": "Unlimited" if plan == "COMPANY_PREMIUM" else 5,
     }
+
+@router.get("/receipt/{transaction_id}")
+def receipt(transaction_id: str):
+
+    receipt = receipt_service.generate_receipt(transaction_id)
+
+    if receipt is None:
+
+        raise HTTPException(
+            status_code=404,
+            detail="Receipt not found"
+        )
+
+    return receipt
+
+@router.post("/refund/{transaction_id}")
+def refund(transaction_id: str):
+
+    return refund_service.refund(transaction_id)
+
+@router.get("/reconciliation")
+def reconciliation_report():
+    return reconciliation_service.generate_report()
